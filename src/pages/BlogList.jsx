@@ -12,7 +12,7 @@ export default function BlogList() {
       .then(res => {
         if (!res.ok) {
           if (res.status === 401) {
-            throw new Error('Unauthorized: Please log in via the Gork dashboard.');
+            throw new Error('Unauthorized: Please log in.');
           }
           throw new Error(`Failed to fetch: ${res.statusText}`);
         }
