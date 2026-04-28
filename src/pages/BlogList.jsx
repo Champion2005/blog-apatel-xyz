@@ -5,10 +5,19 @@ import { format, parseISO } from 'date-fns';
 export default function BlogList() {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('/blogs/index.json')
-      .then(res => res.json())
+    fetch('/api/blogs')
+      .then(res => {
+        if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error('Unauthorized: Please log in via the Gork dashboard.');
+          }
+          throw new Error(`Failed to fetch: ${res.statusText}`);
+        }
+        return res.json();
+      })
       .then(data => {
         // Sort by date descending
         const sorted = data.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -17,12 +26,22 @@ export default function BlogList() {
       })
       .catch(err => {
         console.error('Failed to fetch blog list:', err);
+        setError(err.message);
         setLoading(false);
       });
   }, []);
 
   if (loading) {
     return <div className="text-center py-10 text-gray-400">Loading posts...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-10">
+        <div className="text-red-400 text-lg mb-4">{error}</div>
+        <p className="text-gray-400">Please click "Login with Discord" above to authenticate.</p>
+      </div>
+    );
   }
 
   return (

@@ -12,15 +12,23 @@ export default function BlogPost() {
 
   useEffect(() => {
     setLoading(true);
-    // Fetch blog metadata
-    fetch('/blogs/index.json')
-      .then(res => res.json())
+    // Fetch blog metadata from the secure API
+    fetch('/api/blogs')
+      .then(res => {
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            throw new Error('Access denied. Please log in or wait for approval.');
+          }
+          throw new Error('Failed to load blog metadata');
+        }
+        return res.json();
+      })
       .then(data => {
         const found = data.find(b => b.id === id);
         if (found) {
           setPost(found);
-          // Fetch markdown content
-          return fetch(found.file);
+          // Fetch markdown content securely
+          return fetch(`/api/blogs/${id}`);
         } else {
           throw new Error('Post not found');
         }
@@ -63,7 +71,6 @@ export default function BlogPost() {
         </time>
       </div>
       
-      {/* Basic tailwind typography styles manually applied for simplicity, since we didn't install @tailwindcss/typography */}
       <div className="markdown-body space-y-4 text-gray-300 leading-relaxed">
         <style>{`
           .markdown-body h1 { font-size: 2.25rem; font-weight: 800; margin-top: 2rem; margin-bottom: 1rem; color: #f3f4f6; }

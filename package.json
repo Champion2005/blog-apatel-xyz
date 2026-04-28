@@ -8,11 +8,14 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "serve -s dist"
+    "start": "node server.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
+    "cookie-parser": "^1.4.7",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-markdown": "^10.1.0",
