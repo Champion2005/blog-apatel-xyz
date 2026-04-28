@@ -1,10 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import SimpleMDE from "react-simplemde-editor";
+import "easymde/dist/easymde.min.css";
 
 export default function Admin() {
   const [users, setUsers] = useState([]);
+  const [blogs, setBlogs] = useState([]);
   const [settings, setSettings] = useState({ requireApproval: true, allowedGuildId: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Editor State
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentPost, setCurrentPost] = useState({ id: '', title: '', date: new Date().toISOString().split('T')[0], content: '' });
 
   useEffect(() => {
     fetchAdminData();
@@ -12,13 +19,15 @@ export default function Admin() {
 
   const fetchAdminData = async () => {
     try {
-      const [uRes, sRes] = await Promise.all([
+      const [uRes, sRes, bRes] = await Promise.all([
         fetch('/api/admin/users'),
-        fetch('/api/admin/settings')
+        fetch('/api/admin/settings'),
+        fetch('/api/admin/blogs')
       ]);
-      if (!uRes.ok || !sRes.ok) throw new Error('Failed to load admin data. Are you an admin?');
+      if (!uRes.ok || !sRes.ok || !bRes.ok) throw new Error('Failed to load admin data.');
       setUsers(await uRes.json());
       setSettings(await sRes.json());
+      setBlogs(await bRes.json());
       setLoading(false);
     } catch (err) {
       setError(err.message);
@@ -47,12 +56,143 @@ export default function Admin() {
     if (res.ok) alert('Settings saved!');
   };
 
+  const startNewPost = () => {
+    setCurrentPost({ id: '', title: '', date: new Date().toISOString().split('T')[0], content: '' });
+    setIsEditing(true);
+  };
+
+  const editPost = async (id) => {
+    const res = await fetch(`/api/admin/blogs/${id}`);
+    if (res.ok) {
+      setCurrentPost(await res.json());
+      setIsEditing(true);
+    }
+  };
+
+  const savePost = async () => {
+    if (!currentPost.id || !currentPost.title || !currentPost.content) return alert('Please fill all fields');
+    
+    const res = await fetch('/api/admin/blogs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(currentPost)
+    });
+
+    if (res.ok) {
+      alert('Post saved!');
+      setIsEditing(false);
+      fetchAdminData(); // Refresh list
+    }
+  };
+
+  const deletePost = async (id) => {
+    if (!confirm('Are you sure you want to delete this post?')) return;
+    const res = await fetch(`/api/admin/blogs/${id}`, { method: 'DELETE' });
+    if (res.ok) fetchAdminData();
+  };
+
+  const mdeOptions = useMemo(() => ({
+    spellChecker: false,
+    maxHeight: "400px",
+    autofocus: true,
+    placeholder: "Write your deepest darkest secrets here...",
+    status: false,
+  }), []);
+
   if (loading) return <div className="text-gray-400 py-10">Loading admin panel...</div>;
   if (error) return <div className="text-red-400 py-10">{error}</div>;
 
+  if (isEditing) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold text-gray-100">{currentPost.id ? 'Edit Post' : 'New Post'}</h1>
+          <button onClick={() => setIsEditing(false)} className="text-gray-400 hover:text-white">Cancel</button>
+        </div>
+
+        <div className="space-y-4 bg-gray-800 p-6 rounded-lg border border-gray-700">
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Slug (URL ID)</label>
+            <input 
+              type="text" 
+              value={currentPost.id}
+              onChange={e => setCurrentPost({ ...currentPost, id: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+              className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-200 focus:border-blue-500 focus:outline-none"
+              placeholder="e.g. my-first-post"
+              disabled={!!currentPost._oldId} 
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Title</label>
+            <input 
+              type="text" 
+              value={currentPost.title}
+              onChange={e => setCurrentPost({ ...currentPost, title: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-200 focus:border-blue-500 focus:outline-none"
+              placeholder="Post Title"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Date</label>
+            <input 
+              type="date" 
+              value={currentPost.date}
+              onChange={e => setCurrentPost({ ...currentPost, date: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-200 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Content (Markdown)</label>
+            <div className="prose-invert">
+              <SimpleMDE 
+                value={currentPost.content} 
+                onChange={val => setCurrentPost({ ...currentPost, content: val })} 
+                options={mdeOptions}
+              />
+            </div>
+          </div>
+          <button 
+            onClick={savePost}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors"
+          >
+            Save Blog Post
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-10">
-      <h1 className="text-3xl font-bold text-gray-100">Admin Panel</h1>
+    <div className="space-y-12">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-100">Admin Panel</h1>
+        <button 
+          onClick={startNewPost}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition"
+        >
+          + New Post
+        </button>
+      </div>
+
+      {/* Blogs Section */}
+      <section>
+        <h2 className="text-xl font-semibold text-gray-100 mb-4">Blog Posts</h2>
+        <div className="grid gap-4">
+          {blogs.map(blog => (
+            <div key={blog.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-gray-100">{blog.title}</h3>
+                <p className="text-xs text-gray-500">{blog.date} • /{blog.id}</p>
+              </div>
+              <div className="space-x-4">
+                <button onClick={() => editPost(blog.id)} className="text-blue-400 hover:text-blue-300">Edit</button>
+                <button onClick={() => deletePost(blog.id)} className="text-red-400 hover:text-red-300">Delete</button>
+              </div>
+            </div>
+          ))}
+          {blogs.length === 0 && <p className="text-gray-500">No posts yet.</p>}
+        </div>
+      </section>
 
       <section className="bg-gray-800 p-6 rounded-lg border border-gray-700">
         <h2 className="text-xl font-semibold text-gray-100 mb-4">Site Settings</h2>
@@ -77,7 +217,6 @@ export default function Admin() {
               className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-200 focus:border-blue-500 focus:outline-none"
               placeholder="e.g. 123456789012345678"
             />
-            <p className="text-xs text-gray-500 mt-1">If set, only members of this server will be allowed or auto-approved.</p>
           </div>
           <button 
             onClick={saveSettings}
