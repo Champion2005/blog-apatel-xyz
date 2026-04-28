@@ -22,7 +22,7 @@ export default function BlogList() {
   }, []);
 
   if (loading) {
-    return <div className="text-center py-10 text-gray-500">Loading posts...</div>;
+    return <div className="text-center py-10 text-gray-400">Loading posts...</div>;
   }
 
   return (
@@ -30,7 +30,7 @@ export default function BlogList() {
       {blogs.map(blog => (
         <article key={blog.id} className="group">
           <Link to={`/post/${blog.id}`} className="block">
-            <h2 className="text-2xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-2">
+            <h2 className="text-2xl font-semibold text-gray-100 group-hover:text-blue-400 transition-colors mb-2">
               {blog.title}
             </h2>
             <time className="text-sm text-gray-500" dateTime={blog.date}>
@@ -41,7 +41,7 @@ export default function BlogList() {
       ))}
       
       {blogs.length === 0 && (
-        <div className="text-gray-500">No posts found.</div>
+        <div className="text-gray-400">No posts found.</div>
       )}
     </div>
   );
