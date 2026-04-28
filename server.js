@@ -63,13 +63,17 @@ const decodeSession = (token) => {
   }
 };
 
-const requireAuth = (req, res, next) => {
+const getMe = (req) => {
   const token = req.cookies['blog_session'];
   const session = decodeSession(token);
-  if (!session) return res.status(401).json({ error: 'Unauthorized' });
+  if (!session) return null;
   const users = loadJson(usersFile, {});
-  const user = users[session.discordId];
-  if (!user) return res.status(401).json({ error: 'User not found' });
+  return users[session.discordId] || null;
+};
+
+const requireAuth = (req, res, next) => {
+  const user = getMe(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
   req.user = user;
   next();
 };
@@ -137,7 +141,6 @@ app.get('/auth/discord/callback', async (req, res) => {
     });
     const userGuilds = await guildsRes.json();
 
-    // Check against settings
     const settings = loadJson(settingsFile, { requireApproval: true, allowedGuildId: '' });
     const users = loadJson(usersFile, {});
     
@@ -176,8 +179,10 @@ app.get('/auth/discord/callback', async (req, res) => {
   }
 });
 
-app.get('/api/auth/me', requireAuth, (req, res) => {
-  res.json({ user: req.user });
+app.get('/api/auth/me', (req, res) => {
+  const user = getMe(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  res.json({ user });
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -185,7 +190,6 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true });
 });
 
-// Blog Endpoints
 app.get('/api/blogs', requireAuth, checkAccess, (req, res) => {
   const indexFile = path.join(__dirname, 'blogs', 'index.json');
   if (fs.existsSync(indexFile)) {
@@ -202,16 +206,15 @@ app.get('/api/blogs/:id', requireAuth, checkAccess, (req, res) => {
   if (fs.existsSync(indexFile)) {
     const data = JSON.parse(fs.readFileSync(indexFile, 'utf-8'));
     const blog = data.find(b => b.id === id);
-    if (!blog) return res.status(404).send('Post not found');
+    if (!blog) return res.status(404).json({ error: 'Post not found' });
     const markdownFile = path.join(__dirname, 'blogs', path.basename(blog.file));
     if (fs.existsSync(markdownFile)) res.sendFile(markdownFile);
-    else res.status(404).send('Markdown not found');
+    else res.status(404).json({ error: 'Markdown not found' });
   } else {
-    res.status(404).send('Posts index not found');
+    res.status(404).json({ error: 'Posts index not found' });
   }
 });
 
-// Admin Endpoints
 app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
   const users = loadJson(usersFile, {});
   res.json(Object.values(users));
@@ -240,9 +243,16 @@ app.post('/api/admin/settings', requireAuth, requireAdmin, (req, res) => {
   res.json(settings);
 });
 
-// Serve frontend
+// Handle any other /api/* routes that didn't match above to avoid returning HTML
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'API route not found' });
+});
+
+// Serve ALL static files from dist
 app.use(express.static(path.join(__dirname, 'dist')));
-app.get('*', (req, res) => {
+
+// Fallback to index.html for SPA routing (only for non-API, non-file requests)
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
