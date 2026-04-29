@@ -92,11 +92,20 @@ export default function Admin() {
   };
 
   const mdeOptions = useMemo(() => ({
-    spellChecker: true,
-    maxHeight: "400px",
+    spellChecker: false,
+    maxHeight: "500px",
     autofocus: true,
     placeholder: "Write your deepest darkest secrets here...",
     status: false,
+    sideBySideFullscreen: false,
+    syncSideBySidePreviewScroll: true,
+    toolbar: [
+      "bold", "italic", "heading", "|",
+      "quote", "unordered-list", "ordered-list", "|",
+      "link", "image", "table", "|",
+      "preview", "side-by-side", "fullscreen", "|",
+      "guide"
+    ],
   }), []);
 
   if (loading) return <div className="text-gray-400 py-10">Loading admin panel...</div>;
@@ -105,6 +114,33 @@ export default function Admin() {
   if (isEditing) {
     return (
       <div className="space-y-6">
+        <style>{`
+          .EasyMDEContainer .CodeMirror {
+            background-color: #111827 !important;
+            color: #f3f4f6 !important;
+            border-color: #374151 !important;
+          }
+          .EasyMDEContainer .CodeMirror-cursor { border-left: 2px solid #60a5fa !important; }
+          .EasyMDEContainer .editor-toolbar {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+          }
+          .EasyMDEContainer .editor-toolbar button { color: #d1d5db !important; }
+          .EasyMDEContainer .editor-toolbar button.active,
+          .EasyMDEContainer .editor-toolbar button:hover {
+            background-color: #374151 !important;
+            color: #ffffff !important;
+          }
+          .EasyMDEContainer .editor-preview,
+          .EasyMDEContainer .editor-preview-side {
+            background-color: #111827 !important;
+            color: #d1d5db !important;
+          }
+          .EasyMDEContainer .editor-preview h1, .EasyMDEContainer .editor-preview-side h1 { color: #f3f4f6; border-bottom: 1px solid #374151; }
+          .EasyMDEContainer .editor-preview h2, .EasyMDEContainer .editor-preview-side h2 { color: #f3f4f6; border-bottom: 1px solid #374151; }
+          .EasyMDEContainer .editor-preview a, .EasyMDEContainer .editor-preview-side a { color: #60a5fa; }
+          .EasyMDEContainer .editor-preview code, .EasyMDEContainer .editor-preview-side code { background: #374151; color: #fca5a5; }
+        `}</style>
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-100">{currentPost.id ? 'Edit Post' : 'New Post'}</h1>
           <button onClick={() => setIsEditing(false)} className="text-gray-400 hover:text-white">Cancel</button>
