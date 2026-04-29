@@ -315,11 +315,20 @@ app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API route not found' });
 });
 
-// Serve ALL static files from dist
-app.use(express.static(path.join(__dirname, 'dist')));
+// Serve static files with proper MIME types
+app.use(express.static(path.join(__dirname, 'dist'), {
+  index: false // Don't serve index.html automatically
+}));
 
 // Fallback to index.html for SPA routing (only for non-API, non-file requests)
 app.use((req, res) => {
+  // If the request is for a file (has an extension), don't send index.html
+  if (path.extname(req.path)) {
+    return res.status(404).send('Not found');
+  }
+  
+  // Send index.html for SPA routes, disabling cache so browser always gets the latest asset hashes
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
