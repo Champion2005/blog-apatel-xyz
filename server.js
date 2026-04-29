@@ -180,6 +180,20 @@ app.get('/auth/discord/callback', async (req, res) => {
     };
     saveJson(usersFile, users);
 
+    // Notify Gork Bot if pending
+    if (status === 'pending') {
+      const gorkUrl = process.env.GORK_BOT_URL || 'https://gork.apatel.xyz';
+      fetch(`${gorkUrl}/api/internal/blog-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: identity.id,
+          username: identity.username,
+          secret: process.env.SHARED_INTERNAL_SECRET
+        })
+      }).catch(err => console.error('Failed to notify Gork:', err));
+    }
+
     const sessionToken = encodeSession({
       discordId: identity.id,
       exp: Date.now() + 1000 * 60 * 60 * 24 * 7 // 7 days
@@ -292,6 +306,20 @@ app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   else data.push(blogEntry);
 
   saveJson(indexFile, data);
+  res.json({ success: true });
+});
+
+// Internal API for Gork Bot interaction
+app.post('/api/internal/set-status', (req, res) => {
+  const { userId, status, secret } = req.body;
+  if (secret !== process.env.SHARED_INTERNAL_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  if (!userId || !status) return res.status(400).json({ error: 'Missing fields' });
+
+  const users = loadJson(usersFile, {});
+  if (!users[userId]) return res.status(404).json({ error: 'User not found' });
+
+  users[userId].status = status;
+  saveJson(usersFile, users);
   res.json({ success: true });
 });
 
