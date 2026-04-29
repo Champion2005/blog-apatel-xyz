@@ -154,12 +154,18 @@ app.get('/auth/discord/callback', async (req, res) => {
     const users = loadJson(usersFile, {});
     
     const isFirstUser = Object.keys(users).length === 0;
-    const inAllowedGuild = settings.allowedGuildId ? userGuilds.some(g => g.id === settings.allowedGuildId) : true;
+    const inAllowedGuild = settings.allowedGuildId ? userGuilds.some(g => g.id === settings.allowedGuildId) : false;
     
-    let defaultStatus = 'pending';
-    if (!settings.requireApproval) defaultStatus = 'approved';
-    if (settings.allowedGuildId && inAllowedGuild && !settings.requireApproval) defaultStatus = 'approved';
-    if (settings.allowedGuildId && !inAllowedGuild) defaultStatus = 'denied';
+    let defaultStatus = settings.requireApproval ? 'pending' : 'approved';
+    
+    // If user is in the allowed guild, auto-approve them regardless of the general setting
+    if (settings.allowedGuildId && inAllowedGuild) {
+      defaultStatus = 'approved';
+    } else if (settings.allowedGuildId && !inAllowedGuild) {
+      // If not in the guild and a guild is required, we can either deny or keep pending.
+      // Keeping it 'pending' allows for the "and/or" manual approval the user requested.
+      defaultStatus = settings.requireApproval ? 'pending' : 'denied';
+    }
 
     const existingUser = users[identity.id];
     const role = existingUser ? existingUser.role : (isFirstUser ? 'admin' : 'user');

@@ -92,7 +92,7 @@ export default function Admin() {
   };
 
   const mdeOptions = useMemo(() => ({
-    spellChecker: false,
+    spellChecker: true,
     maxHeight: "400px",
     autofocus: true,
     placeholder: "Write your deepest darkest secrets here...",
