@@ -108,14 +108,14 @@ const discordApi = 'https://discord.com/api';
 app.get('/api/auth/discord', (req, res) => {
   if (!clientId || !clientSecret) return res.status(500).json({ error: 'Discord OAuth not configured.' });
   const state = randomBytes(16).toString('hex');
-  res.cookie('oauth_state', state, { httpOnly: true, maxAge: 1000 * 60 * 10 });
+  res.cookie('oauth_state', state, { httpOnly: true, maxAge: 1000 * 60 * 10, path: '/', sameSite: 'lax' });
   const url = new URL(`${discordApi}/oauth2/authorize`);
   url.searchParams.set('client_id', clientId);
   url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('scope', 'identify guilds');
   url.searchParams.set('state', state);
-  res.json({ url: url.toString() });
+  res.redirect(url.toString());
 });
 
 app.get('/auth/discord/callback', async (req, res) => {

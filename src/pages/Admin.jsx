@@ -13,10 +13,6 @@ export default function Admin() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentPost, setCurrentPost] = useState({ id: '', title: '', date: new Date().toISOString().split('T')[0], content: '' });
 
-  useEffect(() => {
-    fetchAdminData();
-  }, []);
-
   const fetchAdminData = async () => {
     try {
       const [uRes, sRes, bRes] = await Promise.all([
@@ -34,6 +30,11 @@ export default function Admin() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchAdminData();
+  }, []);
 
   const updateUser = async (id, updates) => {
     const res = await fetch(`/api/admin/users/${id}`, {

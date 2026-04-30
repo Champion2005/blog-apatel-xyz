@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext();
@@ -16,14 +17,8 @@ export function AuthProvider({ children }) {
       .catch(() => setLoading(false));
   }, []);
 
-  const login = async () => {
-    const res = await fetch('/api/auth/discord');
-    if (res.ok) {
-      const data = await res.json();
-      window.location.href = data.url;
-    } else {
-      alert('Failed to initialize login.');
-    }
+  const login = () => {
+    window.location.href = '/api/auth/discord';
   };
 
   const logout = async () => {

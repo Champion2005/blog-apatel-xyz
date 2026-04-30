@@ -11,7 +11,6 @@ export default function BlogPost() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setLoading(true);
     // Fetch blog metadata from the secure API
     fetch('/api/blogs')
       .then(res => {
