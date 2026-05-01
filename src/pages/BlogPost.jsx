@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import Markdown from 'react-markdown';
+import { marked } from 'marked';
 import { format, parseISO } from 'date-fns';
 
 export default function BlogPost() {
@@ -83,8 +83,9 @@ export default function BlogPost() {
           .markdown-body pre { background-color: #1f2937; color: #f9fafb; padding: 1rem; border-radius: 0.375rem; overflow-x: auto; margin-bottom: 1rem; }
           .markdown-body code { font-family: monospace; background-color: #374151; padding: 0.125rem 0.25rem; border-radius: 0.25rem; font-size: 0.875em; color: #fca5a5; }
           .markdown-body pre code { background-color: transparent; color: inherit; padding: 0; }
+          .markdown-body del { text-decoration: line-through; }
         `}</style>
-        <Markdown>{content}</Markdown>
+        <div dangerouslySetInnerHTML={{ __html: marked(content) }}></div>
       </div>
     </article>
   );
