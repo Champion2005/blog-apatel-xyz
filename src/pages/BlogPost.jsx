@@ -9,8 +9,14 @@ export default function BlogPost() {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data && data.user) setUserId(data.user.id); })
+      .catch(() => {});
+
     // Fetch blog metadata from the secure API
     fetch('/api/blogs')
       .then(res => {
