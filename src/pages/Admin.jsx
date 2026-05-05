@@ -45,7 +45,13 @@ export default function Admin() {
       ]);
       if (!uRes.ok || !bRes.ok) throw new Error('Failed to load admin data.');
       setUsers(await uRes.json());
-      setBlogs(await bRes.json());
+      const blogsData = await bRes.json();
+      const sortedBlogs = blogsData.sort((a, b) => {
+        const timeA = a.createdAt || new Date(a.date).getTime();
+        const timeB = b.createdAt || new Date(b.date).getTime();
+        return timeB - timeA;
+      });
+      setBlogs(sortedBlogs);
       setLoading(false);
     } catch (err) {
       setError(err.message);

@@ -14,8 +14,7 @@ export default function BlogList() {
         return res.json();
       })
       .then(data => {
-        // Sort by createdAt descending
-        const sorted = data.sort((a, b) => {
+        const sorted = [...data].sort((a, b) => {
           const timeA = a.createdAt || new Date(a.date).getTime();
           const timeB = b.createdAt || new Date(b.date).getTime();
           return timeB - timeA;
