@@ -10,23 +10,23 @@ export default function BlogList() {
   useEffect(() => {
     fetch('/api/blogs')
       .then(res => {
-        if (!res.ok) {
-          if (res.status === 401) {
-            throw new Error('Unauthorized: Please log in.');
-          }
-          throw new Error(`Failed to fetch: ${res.statusText}`);
-        }
+        if (!res.ok) throw new Error(`Failed to fetch: ${res.statusText}`);
         return res.json();
       })
       .then(data => {
-        // Sort by date descending
-        const sorted = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+        // Sort by createdAt descending
+        const sorted = data.sort((a, b) => {
+          const timeA = a.createdAt || new Date(a.date).getTime();
+          const timeB = b.createdAt || new Date(b.date).getTime();
+          return timeB - timeA;
+        });
         setBlogs(sorted);
         setLoading(false);
       })
       .catch(err => {
         console.error('Failed to fetch blog list:', err);
-        setError(err.message);
+        // If we get an error, it might be because the server is down or something else
+        setError('Failed to load blog posts. Please try again later.');
         setLoading(false);
       });
   }, []);

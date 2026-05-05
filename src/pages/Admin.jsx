@@ -188,6 +188,17 @@ export default function Admin() {
             />
           </div>
           <div>
+            <label className="flex items-center space-x-3 text-gray-300">
+              <input 
+                type="checkbox" 
+                checked={currentPost.isPublic}
+                onChange={e => setCurrentPost({ ...currentPost, isPublic: e.target.checked })}
+                className="form-checkbox h-5 w-5 text-blue-500 rounded bg-gray-900 border-gray-600 focus:ring-blue-500 focus:ring-offset-gray-800"
+              />
+              <span>Public Post (Viewable without Discord login)</span>
+            </label>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">Content (Markdown)</label>
             <div className="prose-invert">
               <SimpleMDE 
@@ -228,11 +239,14 @@ export default function Admin() {
             <div key={blog.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 flex justify-between items-center">
               <div>
                 <h3 className="font-bold text-gray-100">{blog.title}</h3>
-                <p className="text-xs text-gray-500">{blog.date} • /{blog.id}</p>
+                <p className="text-xs text-gray-500">{blog.date} • /{blog.id} {blog.isPublic ? '(Public)' : '(Private)'}</p>
                 <p className="text-xs text-gray-400 mt-1">
                   <span className="font-semibold text-gray-300">Viewed by:</span>{' '}
                   {blog.views && blog.views.length > 0 
-                    ? blog.views.map(id => users.find(u => u.id === id)?.username || 'Unknown User').join(', ') 
+                    ? blog.views.map(id => {
+                        if (id.startsWith('ip:')) return `Public User (${id.slice(3)})`;
+                        return users.find(u => u.id === id)?.username || 'Unknown User';
+                      }).join(', ') 
                     : 'No views yet'}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">

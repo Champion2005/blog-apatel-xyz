@@ -1,6 +1,6 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import { createHmac, timingSafeEqual, randomBytes } from 'crypto';
+import { createHmac, timingSafeEqual, randomBytes, createHash } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -83,6 +83,11 @@ const requireAuth = (req, res, next) => {
   const user = getMe(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
   req.user = user;
+  next();
+};
+
+const maybeAuth = (req, res, next) => {
+  req.user = getMe(req);
   next();
 };
 
@@ -187,23 +192,51 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/blogs', requireAuth, checkAccess, (req, res) => {
+app.get('/api/blogs', maybeAuth, (req, res) => {
   const indexFile = path.join(__dirname, 'blogs', 'index.json');
   if (fs.existsSync(indexFile)) {
-    const data = JSON.parse(fs.readFileSync(indexFile, 'utf-8'));
+    let data = JSON.parse(fs.readFileSync(indexFile, 'utf-8'));
+    // If not logged in, only show public blogs
+    if (!req.user) {
+      data = data.filter(b => b.isPublic);
+    }
     res.json(data);
   } else {
     res.json([]);
   }
 });
 
-app.get('/api/blogs/:id', requireAuth, checkAccess, (req, res) => {
+app.get('/api/blogs/:id', maybeAuth, (req, res) => {
   const { id } = req.params;
   const indexFile = path.join(__dirname, 'blogs', 'index.json');
   if (fs.existsSync(indexFile)) {
     const data = JSON.parse(fs.readFileSync(indexFile, 'utf-8'));
     const blog = data.find(b => b.id === id);
     if (!blog) return res.status(404).json({ error: 'Post not found' });
+    
+    // Check if user is allowed to see this
+    if (!blog.isPublic && !req.user) {
+      return res.status(401).json({ error: 'This post is private. Please log in.' });
+    }
+
+    if (!blog.views) blog.views = [];
+    
+    let viewerId = null;
+    if (req.user) {
+      // Don't track admin views
+      if (req.user.role !== 'admin') viewerId = req.user.id;
+    } else {
+      // Unauthenticated view - track by IP hash
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      // createHash('sha256') was imported earlier
+      viewerId = `ip:${createHash('sha256').update(ip).digest('hex').slice(0, 16)}`;
+    }
+
+    if (viewerId && !blog.views.includes(viewerId)) {
+      blog.views.push(viewerId);
+      saveJson(indexFile, data);
+    }
+
     const markdownFile = path.join(__dirname, 'blogs', path.basename(blog.file));
     if (fs.existsSync(markdownFile)) res.sendFile(markdownFile);
     else res.status(404).json({ error: 'Markdown not found' });
@@ -280,8 +313,9 @@ app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   const createdAt = existingBlog && existingBlog.createdAt ? existingBlog.createdAt : Date.now();
   const views = existingBlog && existingBlog.views ? existingBlog.views : [];
   const likes = existingBlog && existingBlog.likes ? existingBlog.likes : [];
+  const isPublic = !!req.body.isPublic;
 
-  const blogEntry = { id, title, date, createdAt, file: fileName, views, likes };
+  const blogEntry = { id, title, date, createdAt, file: fileName, views, likes, isPublic };
 
   if (existingIdx >= 0) data[existingIdx] = blogEntry;
   else data.push(blogEntry);

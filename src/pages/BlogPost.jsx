@@ -17,25 +17,20 @@ export default function BlogPost() {
       .then(data => { if (data && data.user) setUserId(data.user.id); })
       .catch(() => {});
 
-    // Fetch blog metadata from the secure API
+    // Fetch blog metadata
     fetch('/api/blogs')
       .then(res => {
-        if (!res.ok) {
-          if (res.status === 401 || res.status === 403) {
-            throw new Error('Access denied. Please log in or wait for approval.');
-          }
-          throw new Error('Failed to load blog metadata');
-        }
+        if (!res.ok) throw new Error('Failed to load blog metadata');
         return res.json();
       })
       .then(data => {
         const found = data.find(b => b.id === id);
         if (found) {
           setPost(found);
-          // Fetch markdown content securely
+          // Fetch markdown content
           return fetch(`/api/blogs/${id}`);
         } else {
-          throw new Error('Post not found');
+          throw new Error('Post not found or you do not have permission to view it.');
         }
       })
       .then(res => {
@@ -54,6 +49,7 @@ export default function BlogPost() {
   }, [id]);
 
   const toggleLike = async () => {
+    if (!userId) return alert('Please login with Discord to like posts!');
     try {
       const res = await fetch(`/api/blogs/${id}/like`, { method: 'POST' });
       if (res.ok) {
