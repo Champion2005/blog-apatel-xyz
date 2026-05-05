@@ -10,11 +10,19 @@ export default function BlogPost() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userId, setUserId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [commentText, setCommentText] = useState('');
+  const [editingComment, setEditingComment] = useState(null);
 
   useEffect(() => {
     fetch('/api/auth/me')
       .then(res => res.ok ? res.json() : null)
-      .then(data => { if (data && data.user) setUserId(data.user.id); })
+      .then(data => { 
+        if (data && data.user) {
+          setUserId(data.user.id);
+          setCurrentUser(data.user);
+        }
+      })
       .catch(() => {});
 
     // Fetch blog metadata
@@ -61,6 +69,54 @@ export default function BlogPost() {
     }
   };
 
+  const submitComment = async () => {
+    if (!commentText.trim()) return;
+    try {
+      const res = await fetch(`/api/blogs/${id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: commentText })
+      });
+      if (res.ok) {
+        const newComment = await res.json();
+        setPost(prev => ({ ...prev, comments: [...(prev.comments || []), newComment] }));
+        setCommentText('');
+      }
+    } catch (err) {
+      console.error('Failed to post comment', err);
+    }
+  };
+
+  const deleteComment = async (commentId) => {
+    if (!confirm('Are you sure you want to delete this comment?')) return;
+    try {
+      const res = await fetch(`/api/blogs/${id}/comments/${commentId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setPost(prev => ({ ...prev, comments: prev.comments.filter(c => c.id !== commentId) }));
+      }
+    } catch (err) {
+      console.error('Failed to delete comment', err);
+    }
+  };
+
+  const saveEditComment = async () => {
+    if (!editingComment.content.trim()) return;
+    try {
+      const res = await fetch(`/api/blogs/${id}/comments/${editingComment.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editingComment.content })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPost(prev => ({ ...prev, comments: prev.comments.map(c => c.id === updated.id ? updated : c) }));
+        setEditingComment(null);
+      }
+    } catch (err) {
+      console.error('Failed to update comment', err);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-10 text-gray-400">Loading...</div>;
   }
@@ -100,22 +156,107 @@ export default function BlogPost() {
         </div>
       </div>
       
-      <div className="markdown-body space-y-4 text-gray-300 leading-relaxed">
+      <div className="markdown-body space-y-6 text-gray-300 leading-relaxed">
         <style>{`
-          .markdown-body h1 { font-size: 2.25rem; font-weight: 800; margin-top: 2rem; margin-bottom: 1rem; color: #f3f4f6; }
-          .markdown-body h2 { font-size: 1.5rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #f3f4f6; }
-          .markdown-body h3 { font-size: 1.25rem; font-weight: 600; margin-top: 1.25rem; margin-bottom: 0.5rem; color: #f3f4f6; }
-          .markdown-body p { margin-bottom: 1rem; }
+          .markdown-body h1 { font-size: 2.25rem; font-weight: 800; margin-top: 3rem; margin-bottom: 1.5rem; color: #f3f4f6; }
+          .markdown-body h2 { font-size: 1.5rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 1.25rem; color: #f3f4f6; border-bottom: 1px solid #374151; padding-bottom: 0.5rem; }
+          .markdown-body h3 { font-size: 1.25rem; font-weight: 600; margin-top: 2rem; margin-bottom: 1rem; color: #f3f4f6; }
+          .markdown-body p { margin-bottom: 1.5rem; }
           .markdown-body a { color: #60a5fa; text-decoration: underline; }
-          .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
-          .markdown-body ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
-          .markdown-body blockquote { border-left-width: 4px; border-color: #374151; padding-left: 1rem; font-style: italic; color: #9ca3af; }
-          .markdown-body pre { background-color: #1f2937; color: #f9fafb; padding: 1rem; border-radius: 0.375rem; overflow-x: auto; margin-bottom: 1rem; }
-          .markdown-body code { font-family: monospace; background-color: #374151; padding: 0.125rem 0.25rem; border-radius: 0.25rem; font-size: 0.875em; color: #fca5a5; }
+          .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1.5rem; }
+          .markdown-body ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1.5rem; }
+          .markdown-body li { margin-bottom: 0.5rem; }
+          .markdown-body blockquote { border-left-width: 4px; border-color: #374151; padding-left: 1rem; font-style: italic; color: #9ca3af; margin-bottom: 1.5rem; }
+          .markdown-body pre { background-color: #1f2937; color: #f9fafb; padding: 1.25rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #374151; }
+          .markdown-body code { font-family: monospace; background-color: #374151; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875em; color: #fca5a5; }
           .markdown-body pre code { background-color: transparent; color: inherit; padding: 0; }
           .markdown-body del { text-decoration: line-through; }
+          .markdown-body hr { border-color: #374151; margin: 2rem 0; }
         `}</style>
         <div dangerouslySetInnerHTML={{ __html: marked(content) }}></div>
+      </div>
+
+      <div className="mt-16 border-t border-gray-700 pt-8 pb-12">
+        <h2 className="text-2xl font-bold text-gray-100 mb-8">Comments ({post.comments ? post.comments.length : 0})</h2>
+        
+        {userId ? (
+          <div className="mb-8 space-y-3">
+            <textarea
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="What are your thoughts?"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-gray-100 focus:border-blue-500 focus:outline-none min-h-[100px]"
+            />
+            <div className="flex justify-end">
+              <button 
+                onClick={submitComment}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+              >
+                Post Comment
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gray-800/50 border border-gray-700 p-4 rounded-lg text-center mb-8">
+            <p className="text-gray-400">Please login with Discord to leave a comment.</p>
+          </div>
+        )}
+
+        <div className="space-y-6">
+          {(post.comments || []).sort((a, b) => b.createdAt - a.createdAt).map(comment => (
+            <div key={comment.id} className="bg-gray-800/30 border border-gray-700/50 p-4 rounded-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  {comment.avatar && <img src={`https://cdn.discordapp.com/avatars/${comment.userId}/${comment.avatar}.png`} className="w-8 h-8 rounded-full" alt="avatar" />}
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-bold text-gray-200">{comment.username}</span>
+                      {comment.role === 'admin' && (
+                        <span className="bg-red-900/30 text-red-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-red-900/50">ADMIN</span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-gray-500">{new Date(comment.createdAt).toLocaleString()}</div>
+                  </div>
+                </div>
+                {(comment.userId === userId || currentUser?.role === 'admin') && (
+                  <div className="flex space-x-3 text-[11px]">
+                    <button 
+                      onClick={() => setEditingComment(comment)}
+                      className="text-gray-400 hover:text-blue-400"
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      onClick={() => deleteComment(comment.id)}
+                      className="text-gray-400 hover:text-red-400"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              {editingComment?.id === comment.id ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={editingComment.content}
+                    onChange={(e) => setEditingComment({ ...editingComment, content: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-gray-100 text-sm focus:outline-none"
+                  />
+                  <div className="flex justify-end space-x-2">
+                    <button onClick={() => setEditingComment(null)} className="text-xs text-gray-500">Cancel</button>
+                    <button onClick={saveEditComment} className="text-xs text-blue-400 font-bold">Save</button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-300 text-sm whitespace-pre-wrap">{comment.content}</p>
+              )}
+            </div>
+          ))}
+          {(!post.comments || post.comments.length === 0) && (
+            <p className="text-gray-500 text-center py-4">No comments yet. Be the first!</p>
+          )}
+        </div>
       </div>
     </article>
   );

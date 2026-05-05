@@ -80,7 +80,8 @@ export default function Admin() {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     const createdAtStr = now.toISOString().slice(0, 16);
-    setCurrentPost({ id: '', title: '', date: new Date().toISOString().split('T')[0], createdAtStr, content: '', isPublic: false, status: 'draft' });
+    const defaultContent = `***begin post***\n\n\n\n***end post***`;
+    setCurrentPost({ id: '', title: '', date: new Date().toISOString().split('T')[0], createdAtStr, content: defaultContent, isPublic: false, status: 'draft' });
     setIsEditing(true);
   };
 

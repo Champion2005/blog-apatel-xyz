@@ -286,6 +286,76 @@ app.post('/api/blogs/:id/like', requireAuth, checkAccess, (req, res) => {
   res.json({ likes: blog.likes });
 });
 
+app.post('/api/blogs/:id/comments', requireAuth, checkAccess, (req, res) => {
+  const { id } = req.params;
+  const { content } = req.body;
+  if (!content) return res.status(400).json({ error: 'Comment content required' });
+
+  const indexFile = path.join(__dirname, 'blogs', 'index.json');
+  const data = loadJson(indexFile, []);
+  const blog = data.find(b => b.id === id);
+  if (!blog) return res.status(404).json({ error: 'Post not found' });
+
+  if (!blog.comments) blog.comments = [];
+  
+  const newComment = {
+    id: randomBytes(8).toString('hex'),
+    userId: req.user.id,
+    username: req.user.username,
+    avatar: req.user.avatar,
+    content: content.slice(0, 1000), // Basic length limit
+    createdAt: Date.now(),
+    role: req.user.role
+  };
+
+  blog.comments.push(newComment);
+  saveJson(indexFile, data);
+  res.json(newComment);
+});
+
+app.patch('/api/blogs/:id/comments/:commentId', requireAuth, checkAccess, (req, res) => {
+  const { id, commentId } = req.params;
+  const { content } = req.body;
+  if (!content) return res.status(400).json({ error: 'Content required' });
+
+  const indexFile = path.join(__dirname, 'blogs', 'index.json');
+  const data = loadJson(indexFile, []);
+  const blog = data.find(b => b.id === id);
+  if (!blog?.comments) return res.status(404).json({ error: 'Comment not found' });
+
+  const comment = blog.comments.find(c => c.id === commentId);
+  if (!comment) return res.status(404).json({ error: 'Comment not found' });
+
+  if (comment.userId !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  comment.content = content.slice(0, 1000);
+  comment.updatedAt = Date.now();
+  saveJson(indexFile, data);
+  res.json(comment);
+});
+
+app.delete('/api/blogs/:id/comments/:commentId', requireAuth, checkAccess, (req, res) => {
+  const { id, commentId } = req.params;
+  const indexFile = path.join(__dirname, 'blogs', 'index.json');
+  const data = loadJson(indexFile, []);
+  const blog = data.find(b => b.id === id);
+  if (!blog?.comments) return res.status(404).json({ error: 'Comment not found' });
+
+  const commentIdx = blog.comments.findIndex(c => c.id === commentId);
+  if (commentIdx === -1) return res.status(404).json({ error: 'Comment not found' });
+
+  const comment = blog.comments[commentIdx];
+  if (comment.userId !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  blog.comments.splice(commentIdx, 1);
+  saveJson(indexFile, data);
+  res.json({ success: true });
+});
+
 app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
   const users = loadJson(usersFile, {});
   res.json(Object.values(users));
@@ -337,13 +407,28 @@ app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
 
   const existingIdx = data.findIndex(b => b.id === id);
   const existingBlog = existingIdx >= 0 ? data[existingIdx] : null;
-  const createdAt = existingBlog && existingBlog.createdAt ? existingBlog.createdAt : Date.now();
+  
+  // Logic: 
+  // 1. If manual createdAt was sent (from the Admin UI input), use it.
+  // 2. If it's a NEW post and is being published, use now.
+  // 3. If it was a DRAFT and is now being PUBLISHED, update to now.
+  // 4. Otherwise preserve existing.
+  let createdAt = existingBlog && existingBlog.createdAt ? existingBlog.createdAt : Date.now();
+  if (req.body.createdAt) {
+    createdAt = req.body.createdAt; // Manual override from UI
+  } else if (!existingBlog && req.body.status === 'published') {
+    createdAt = Date.now();
+  } else if (existingBlog && existingBlog.status === 'draft' && req.body.status === 'published') {
+    createdAt = Date.now();
+  }
+
   const views = existingBlog && existingBlog.views ? existingBlog.views : [];
   const likes = existingBlog && existingBlog.likes ? existingBlog.likes : [];
+  const comments = existingBlog && existingBlog.comments ? existingBlog.comments : [];
   const isPublic = !!req.body.isPublic;
   const status = req.body.status === 'published' ? 'published' : 'draft';
 
-  const blogEntry = { id, title, date, createdAt, file: fileName, views, likes, isPublic, status };
+  const blogEntry = { id, title, date, createdAt, file: fileName, views, likes, isPublic, status, comments };
 
   if (existingIdx >= 0) data[existingIdx] = blogEntry;
   else data.push(blogEntry);
