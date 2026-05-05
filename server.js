@@ -196,7 +196,11 @@ app.get('/api/blogs', maybeAuth, (req, res) => {
   const indexFile = path.join(__dirname, 'blogs', 'index.json');
   if (fs.existsSync(indexFile)) {
     let data = JSON.parse(fs.readFileSync(indexFile, 'utf-8'));
-    // If not logged in, only show public blogs
+    // Filter out drafts for non-admins
+    if (req.user?.role !== 'admin') {
+      data = data.filter(b => b.status === 'published');
+    }
+    // If not logged in, only show public published blogs
     if (!req.user) {
       data = data.filter(b => b.isPublic);
     }
@@ -215,6 +219,13 @@ app.get('/api/blogs/:id', maybeAuth, (req, res) => {
     if (!blog) return res.status(404).json({ error: 'Post not found' });
     
     // Check if user is allowed to see this
+    const isAdmin = req.user?.role === 'admin';
+    const isDraft = blog.status === 'draft';
+
+    if (isDraft && !isAdmin) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
     if (!blog.isPublic && !req.user) {
       return res.status(401).json({ error: 'This post is private. Please log in.' });
     }
@@ -313,37 +324,47 @@ app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   const views = existingBlog && existingBlog.views ? existingBlog.views : [];
   const likes = existingBlog && existingBlog.likes ? existingBlog.likes : [];
   const isPublic = !!req.body.isPublic;
+  const status = req.body.status === 'published' ? 'published' : 'draft';
 
-  const blogEntry = { id, title, date, createdAt, file: fileName, views, likes, isPublic };
+  const blogEntry = { id, title, date, createdAt, file: fileName, views, likes, isPublic, status };
 
   if (existingIdx >= 0) data[existingIdx] = blogEntry;
   else data.push(blogEntry);
 
   saveJson(indexFile, data);
 
-  // Notify Discord via Webhook if it's a new public post or was private and is now public
+  // Notify Discord via Webhook if it's being published
   const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL || 'https://discord.com/api/webhooks/1501037122046529636/VyYNodK28K7SP7evvD2SFnOty7ZrYKmyh7PWSOWIaawY3SjTKBzmnrUyOywBpHxQXNK_';
-  const isNewPublicPost = !existingBlog && isPublic;
-  const wasPrivateNowPublic = existingBlog && !existingBlog.isPublic && isPublic;
+  
+  const wasDraft = !existingBlog || existingBlog.status === 'draft';
+  const isNowPublished = status === 'published';
 
-  if (isNewPublicPost || wasPrivateNowPublic) {
+  if (wasDraft && isNowPublished) {
     const blogUrl = `https://blog.apatel.xyz/post/${id}`;
+    
+    // Only include description/preview if it's a public post
+    const embed = {
+      title: title,
+      url: blogUrl,
+      color: isPublic ? 5814783 : 16731136, // Purple for public, Orange for private
+      fields: [
+        { name: 'Date', value: date, inline: true },
+        { name: 'Visibility', value: isPublic ? '🌍 Public' : '🔒 Private (Login Required)', inline: true }
+      ],
+      footer: { text: 'blog.apatel.xyz' },
+      timestamp: new Date().toISOString()
+    };
+
+    if (isPublic) {
+      embed.description = content.slice(0, 200) + '...';
+    }
+
     fetch(discordWebhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        content: `🚀 **New Blog Post Published!**`,
-        embeds: [{
-          title: title,
-          url: blogUrl,
-          description: content.slice(0, 200) + '...',
-          color: 5814783, // Purple
-          fields: [
-            { name: 'Date', value: date, inline: true }
-          ],
-          footer: { text: 'blog.apatel.xyz' },
-          timestamp: new Date().toISOString()
-        }]
+        content: isPublic ? `🚀 **New Public Blog Post Published!**` : `🔑 **New Private Blog Post Published!**`,
+        embeds: [embed]
       })
     }).catch(err => console.error('Failed to send Discord webhook:', err));
   }

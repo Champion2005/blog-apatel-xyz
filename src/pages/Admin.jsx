@@ -35,7 +35,7 @@ export default function Admin() {
 
   // Editor State
   const [isEditing, setIsEditing] = useState(false);
-  const [currentPost, setCurrentPost] = useState({ id: '', title: '', date: new Date().toISOString().split('T')[0], content: '', isPublic: false });
+  const [currentPost, setCurrentPost] = useState({ id: '', title: '', date: new Date().toISOString().split('T')[0], content: '', isPublic: false, status: 'draft' });
 
   const fetchAdminData = async () => {
     try {
@@ -80,7 +80,7 @@ export default function Admin() {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     const createdAtStr = now.toISOString().slice(0, 16);
-    setCurrentPost({ id: '', title: '', date: new Date().toISOString().split('T')[0], createdAtStr, content: '' });
+    setCurrentPost({ id: '', title: '', date: new Date().toISOString().split('T')[0], createdAtStr, content: '', isPublic: false, status: 'draft' });
     setIsEditing(true);
   };
 
@@ -91,17 +91,21 @@ export default function Admin() {
       const createTime = post.createdAt ? new Date(post.createdAt) : new Date(post.date);
       createTime.setMinutes(createTime.getMinutes() - createTime.getTimezoneOffset());
       post.createdAtStr = createTime.toISOString().slice(0, 16);
+      if (!post.status) post.status = 'published'; // migration fallback
       setCurrentPost(post);
       setIsEditing(true);
     }
   };
 
-  const savePost = async () => {
+  const savePost = async (targetStatus) => {
     if (!currentPost.id || !currentPost.title || !currentPost.content) return alert('Please fill all fields');
     
     const payload = { ...currentPost };
     if (payload.createdAtStr) {
       payload.createdAt = new Date(payload.createdAtStr).getTime();
+    }
+    if (targetStatus) {
+      payload.status = targetStatus;
     }
 
     const res = await fetch('/api/admin/blogs', {
@@ -111,7 +115,7 @@ export default function Admin() {
     });
 
     if (res.ok) {
-      alert('Post saved!');
+      alert(`Post ${payload.status === 'published' ? 'published' : 'saved as draft'}!`);
       setIsEditing(false);
       fetchAdminData(); // Refresh list
     }
@@ -239,12 +243,20 @@ export default function Admin() {
               />
             </div>
           </div>
-          <button 
-            onClick={savePost}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors"
-          >
-            Save Blog Post
-          </button>
+          <div className="flex space-x-4 pt-4 border-t border-gray-700/50">
+            <button 
+              onClick={() => savePost('draft')}
+              className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 font-bold py-3 rounded-lg transition-colors border border-gray-600"
+            >
+              Save as Draft
+            </button>
+            <button 
+              onClick={() => savePost('published')}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors"
+            >
+              {currentPost.status === 'published' ? 'Update Post' : 'Publish Post'}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -270,7 +282,15 @@ export default function Admin() {
             <div key={blog.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 flex justify-between items-center">
               <div>
                 <h3 className="font-bold text-gray-100">{blog.title}</h3>
-                <p className="text-xs text-gray-500">{blog.date} • /{blog.id} {blog.isPublic ? '(Public)' : '(Private)'}</p>
+                <p className="text-xs text-gray-500">
+                  {blog.date} • /{blog.id} 
+                  <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${blog.status === 'draft' ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-700/50' : 'bg-green-900/50 text-green-400 border border-green-700/50'}`}>
+                    {blog.status || 'published'}
+                  </span>
+                  <span className="ml-2 opacity-50">
+                    {blog.isPublic ? '(Public)' : '(Private)'}
+                  </span>
+                </p>
                 <div className="flex space-x-4 mt-2">
                   <button 
                     onClick={() => openModal(`Viewers: ${blog.title}`, blog.views || [])}
