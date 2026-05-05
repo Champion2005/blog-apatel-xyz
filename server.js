@@ -198,7 +198,8 @@ app.get('/api/blogs', maybeAuth, (req, res) => {
     let data = JSON.parse(fs.readFileSync(indexFile, 'utf-8'));
     // Filter out drafts for non-admins
     if (req.user?.role !== 'admin') {
-      data = data.filter(b => b.status === 'published');
+      // Treat any post without a status as 'published' (migration fallback)
+      data = data.filter(b => !b.status || b.status === 'published');
     }
     // If not logged in, only show public published blogs
     if (!req.user) {
