@@ -8,9 +8,34 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalList, setModalList] = useState([]);
+  const [ipInfo, setIpInfo] = useState({});
+
+  const fetchIpInfo = async (ip) => {
+    if (ipInfo[ip]) return;
+    try {
+      const res = await fetch(`https://ipapi.co/${ip}/json/`);
+      if (res.ok) {
+        const data = await res.json();
+        setIpInfo(prev => ({ ...prev, [ip]: data }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch IP info', err);
+    }
+  };
+
+  const openModal = (title, ids) => {
+    setModalTitle(title);
+    setModalList(ids);
+    setShowModal(true);
+  };
+
   // Editor State
   const [isEditing, setIsEditing] = useState(false);
-  const [currentPost, setCurrentPost] = useState({ id: '', title: '', date: new Date().toISOString().split('T')[0], content: '' });
+  const [currentPost, setCurrentPost] = useState({ id: '', title: '', date: new Date().toISOString().split('T')[0], content: '', isPublic: false });
 
   const fetchAdminData = async () => {
     try {
@@ -240,21 +265,20 @@ export default function Admin() {
               <div>
                 <h3 className="font-bold text-gray-100">{blog.title}</h3>
                 <p className="text-xs text-gray-500">{blog.date} • /{blog.id} {blog.isPublic ? '(Public)' : '(Private)'}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  <span className="font-semibold text-gray-300">Viewed by:</span>{' '}
-                  {blog.views && blog.views.length > 0 
-                    ? blog.views.map(id => {
-                        if (id.startsWith('ip:')) return `Public User (${id.slice(3)})`;
-                        return users.find(u => u.id === id)?.username || 'Unknown User';
-                      }).join(', ') 
-                    : 'No views yet'}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  <span className="font-semibold text-gray-300">Likes:</span>{' '}
-                  {blog.likes && blog.likes.length > 0 
-                    ? blog.likes.map(id => users.find(u => u.id === id)?.username || 'Unknown User').join(', ') 
-                    : 'No likes yet'}
-                </p>
+                <div className="flex space-x-4 mt-2">
+                  <button 
+                    onClick={() => openModal(`Viewers: ${blog.title}`, blog.views || [])}
+                    className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition"
+                  >
+                    Viewers: {blog.views ? blog.views.length : 0}
+                  </button>
+                  <button 
+                    onClick={() => openModal(`Likes: ${blog.title}`, blog.likes || [])}
+                    className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition"
+                  >
+                    Likes: {blog.likes ? blog.likes.length : 0}
+                  </button>
+                </div>
               </div>
               <div className="space-x-4">
                 <button onClick={() => editPost(blog.id)} className="text-blue-400 hover:text-blue-300">Edit</button>
@@ -265,6 +289,71 @@ export default function Admin() {
           {blogs.length === 0 && <p className="text-gray-500">No posts yet.</p>}
         </div>
       </section>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-lg w-full max-h-[80vh] flex flex-col">
+            <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-100">{modalTitle}</h3>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              {modalList.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No data to show.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {modalList.map((id, i) => {
+                    const isIp = id.startsWith('ip:');
+                    const ip = isIp ? id.slice(3) : null;
+                    const user = !isIp ? users.find(u => u.id === id) : null;
+
+                    return (
+                      <li key={i} className="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
+                        {isIp ? (
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-mono text-blue-400">Public IP: {ip}</span>
+                              <button 
+                                onClick={() => fetchIpInfo(ip)}
+                                className="text-[10px] bg-blue-900/30 text-blue-300 px-2 py-1 rounded hover:bg-blue-900/50 transition"
+                              >
+                                {ipInfo[ip] ? 'Refresh Info' : 'Get Location Info'}
+                              </button>
+                            </div>
+                            {ipInfo[ip] && (
+                              <div className="text-xs text-gray-400 grid grid-cols-2 gap-1 bg-black/30 p-2 rounded">
+                                <div><span className="text-gray-500">City:</span> {ipInfo[ip].city || 'N/A'}</div>
+                                <div><span className="text-gray-500">Region:</span> {ipInfo[ip].region || 'N/A'}</div>
+                                <div><span className="text-gray-500">Country:</span> {ipInfo[ip].country_name || 'N/A'}</div>
+                                <div><span className="text-gray-500">Org:</span> {ipInfo[ip].org || 'N/A'}</div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-3">
+                            {user?.avatar && <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} className="w-6 h-6 rounded-full" alt="avatar" />}
+                            <span className="text-sm text-gray-200">{user?.username || 'Unknown User'}</span>
+                            <span className="text-[10px] text-gray-500">(ID: {id})</span>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-700 bg-gray-900/30">
+              <button 
+                onClick={() => setShowModal(false)}
+                className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 rounded-lg transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section>
         <h2 className="text-xl font-semibold text-gray-100 mb-4">Users</h2>

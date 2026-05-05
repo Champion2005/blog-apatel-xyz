@@ -226,10 +226,9 @@ app.get('/api/blogs/:id', maybeAuth, (req, res) => {
       // Don't track admin views
       if (req.user.role !== 'admin') viewerId = req.user.id;
     } else {
-      // Unauthenticated view - track by IP hash
+      // Unauthenticated view - track by IP
       const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-      // createHash('sha256') was imported earlier
-      viewerId = `ip:${createHash('sha256').update(ip).digest('hex').slice(0, 16)}`;
+      viewerId = `ip:${ip}`;
     }
 
     if (viewerId && !blog.views.includes(viewerId)) {
