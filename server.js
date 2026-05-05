@@ -298,6 +298,11 @@ app.post('/api/blogs/:id/comments', requireAuth, checkAccess, (req, res) => {
 
   if (!blog.comments) blog.comments = [];
   
+  const userComments = blog.comments.filter(c => c.userId === req.user.id);
+  if (userComments.length >= 10 && req.user.role !== 'admin') {
+    return res.status(400).json({ error: 'Maximum of 10 comments per post reached.' });
+  }
+  
   const newComment = {
     id: randomBytes(8).toString('hex'),
     userId: req.user.id,

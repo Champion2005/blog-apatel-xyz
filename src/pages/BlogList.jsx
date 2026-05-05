@@ -59,6 +59,8 @@ export default function BlogList() {
               <span>{blog.views ? blog.views.length : 0} views</span>
               <span>•</span>
               <span>{blog.likes ? blog.likes.length : 0} likes</span>
+              <span>•</span>
+              <span>{blog.comments ? blog.comments.length : 0} comments</span>
             </div>
           </Link>
         </article>
