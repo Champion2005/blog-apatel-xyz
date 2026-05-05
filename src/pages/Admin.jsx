@@ -229,6 +229,12 @@ export default function Admin() {
               <div>
                 <h3 className="font-bold text-gray-100">{blog.title}</h3>
                 <p className="text-xs text-gray-500">{blog.date} • /{blog.id}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  <span className="font-semibold text-gray-300">Viewed by:</span>{' '}
+                  {blog.views && blog.views.length > 0 
+                    ? blog.views.map(id => users.find(u => u.id === id)?.username || 'Unknown User').join(', ') 
+                    : 'No views yet'}
+                </p>
               </div>
               <div className="space-x-4">
                 <button onClick={() => editPost(blog.id)} className="text-blue-400 hover:text-blue-300">Edit</button>
