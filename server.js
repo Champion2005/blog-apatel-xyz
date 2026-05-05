@@ -320,6 +320,34 @@ app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   else data.push(blogEntry);
 
   saveJson(indexFile, data);
+
+  // Notify Discord via Webhook if it's a new public post or was private and is now public
+  const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL || 'https://discord.com/api/webhooks/1501037122046529636/VyYNodK28K7SP7evvD2SFnOty7ZrYKmyh7PWSOWIaawY3SjTKBzmnrUyOywBpHxQXNK_';
+  const isNewPublicPost = !existingBlog && isPublic;
+  const wasPrivateNowPublic = existingBlog && !existingBlog.isPublic && isPublic;
+
+  if (isNewPublicPost || wasPrivateNowPublic) {
+    const blogUrl = `https://blog.apatel.xyz/post/${id}`;
+    fetch(discordWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: `🚀 **New Blog Post Published!**`,
+        embeds: [{
+          title: title,
+          url: blogUrl,
+          description: content.slice(0, 200) + '...',
+          color: 5814783, // Purple
+          fields: [
+            { name: 'Date', value: date, inline: true }
+          ],
+          footer: { text: 'blog.apatel.xyz' },
+          timestamp: new Date().toISOString()
+        }]
+      })
+    }).catch(err => console.error('Failed to send Discord webhook:', err));
+  }
+
   res.json({ success: true });
 });
 
