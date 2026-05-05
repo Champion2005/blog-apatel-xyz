@@ -29,7 +29,6 @@ const dbDir = path.join(__dirname, 'blogs');
 if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
 const usersFile = path.join(dbDir, 'users.json');
-const settingsFile = path.join(dbDir, 'settings.json');
 
 const loadJson = (file, defaultData) => {
   if (fs.existsSync(file)) {
@@ -111,7 +110,7 @@ app.get('/api/auth/discord', (req, res) => {
   url.searchParams.set('client_id', clientId);
   url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('response_type', 'code');
-  url.searchParams.set('scope', 'identify guilds');
+  url.searchParams.set('scope', 'identify');
   url.searchParams.set('state', state);
   res.redirect(url.toString());
 });
@@ -213,6 +212,28 @@ app.get('/api/blogs/:id', requireAuth, checkAccess, (req, res) => {
   }
 });
 
+app.post('/api/blogs/:id/like', requireAuth, checkAccess, (req, res) => {
+  const { id } = req.params;
+  const indexFile = path.join(__dirname, 'blogs', 'index.json');
+  if (!fs.existsSync(indexFile)) return res.status(404).json({ error: 'Posts index not found' });
+
+  const data = loadJson(indexFile, []);
+  const blog = data.find(b => b.id === id);
+  if (!blog) return res.status(404).json({ error: 'Post not found' });
+
+  if (!blog.likes) blog.likes = [];
+  const userIdx = blog.likes.indexOf(req.user.id);
+  
+  if (userIdx > -1) {
+    blog.likes.splice(userIdx, 1); // unlike
+  } else {
+    blog.likes.push(req.user.id); // like
+  }
+  
+  saveJson(indexFile, data);
+  res.json({ likes: blog.likes });
+});
+
 app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
   const users = loadJson(usersFile, {});
   res.json(Object.values(users));
@@ -223,22 +244,8 @@ app.post('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   const user = users[req.params.id];
   if (!user) return res.status(404).json({ error: 'User not found' });
   if (req.body.role) user.role = req.body.role;
-  if (req.body.status) user.status = req.body.status;
   saveJson(usersFile, users);
   res.json(user);
-});
-
-app.get('/api/admin/settings', requireAuth, requireAdmin, (req, res) => {
-  res.json(loadJson(settingsFile, { requireApproval: true, allowedGuildId: '' }));
-});
-
-app.post('/api/admin/settings', requireAuth, requireAdmin, (req, res) => {
-  const settings = {
-    requireApproval: !!req.body.requireApproval,
-    allowedGuildId: req.body.allowedGuildId || ''
-  };
-  saveJson(settingsFile, settings);
-  res.json(settings);
 });
 
 // Blog Management Endpoints
@@ -272,8 +279,9 @@ app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   const existingBlog = existingIdx >= 0 ? data[existingIdx] : null;
   const createdAt = existingBlog && existingBlog.createdAt ? existingBlog.createdAt : Date.now();
   const views = existingBlog && existingBlog.views ? existingBlog.views : [];
+  const likes = existingBlog && existingBlog.likes ? existingBlog.likes : [];
 
-  const blogEntry = { id, title, date, createdAt, file: fileName, views };
+  const blogEntry = { id, title, date, createdAt, file: fileName, views, likes };
 
   if (existingIdx >= 0) data[existingIdx] = blogEntry;
   else data.push(blogEntry);

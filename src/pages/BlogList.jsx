@@ -58,6 +58,8 @@ export default function BlogList() {
               </time>
               <span>•</span>
               <span>{blog.views ? blog.views.length : 0} views</span>
+              <span>•</span>
+              <span>{blog.likes ? blog.likes.length : 0} likes</span>
             </div>
           </Link>
         </article>

@@ -47,6 +47,18 @@ export default function BlogPost() {
       });
   }, [id]);
 
+  const toggleLike = async () => {
+    try {
+      const res = await fetch(`/api/blogs/${id}/like`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setPost(prev => ({ ...prev, likes: data.likes }));
+      }
+    } catch (err) {
+      console.error('Failed to toggle like', err);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-10 text-gray-400">Loading...</div>;
   }
@@ -65,9 +77,25 @@ export default function BlogPost() {
       <div className="mb-8 border-b border-gray-700 pb-8">
         <Link to="/" className="text-sm text-blue-400 hover:underline mb-4 inline-block">← Back</Link>
         <h1 className="text-4xl font-extrabold tracking-tight text-gray-100 mb-2 mt-4">{post.title}</h1>
-        <time className="text-sm text-gray-400" dateTime={post.date}>
-          {format(parseISO(post.date), 'MMMM d, yyyy')}
-        </time>
+        <div className="flex items-center space-x-4 text-sm text-gray-400">
+          <time dateTime={post.date}>
+            {format(parseISO(post.date), 'MMMM d, yyyy')}
+          </time>
+          <span>•</span>
+          <span>{post.views ? post.views.length : 0} views</span>
+          <span>•</span>
+          <button 
+            onClick={toggleLike} 
+            className={`flex items-center space-x-1 px-2 py-1 rounded transition-colors ${
+              post.likes && post.likes.includes(userId) 
+                ? 'bg-blue-900/50 text-blue-400 hover:bg-blue-900/70' 
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+            }`}
+          >
+            <span>👍</span>
+            <span>{post.likes ? post.likes.length : 0}</span>
+          </button>
+        </div>
       </div>
       
       <div className="markdown-body space-y-4 text-gray-300 leading-relaxed">

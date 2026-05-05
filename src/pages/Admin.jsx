@@ -5,7 +5,6 @@ import "easymde/dist/easymde.min.css";
 export default function Admin() {
   const [users, setUsers] = useState([]);
   const [blogs, setBlogs] = useState([]);
-  const [settings, setSettings] = useState({ requireApproval: true, allowedGuildId: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -15,14 +14,12 @@ export default function Admin() {
 
   const fetchAdminData = async () => {
     try {
-      const [uRes, sRes, bRes] = await Promise.all([
+      const [uRes, bRes] = await Promise.all([
         fetch('/api/admin/users'),
-        fetch('/api/admin/settings'),
         fetch('/api/admin/blogs')
       ]);
-      if (!uRes.ok || !sRes.ok || !bRes.ok) throw new Error('Failed to load admin data.');
+      if (!uRes.ok || !bRes.ok) throw new Error('Failed to load admin data.');
       setUsers(await uRes.json());
-      setSettings(await sRes.json());
       setBlogs(await bRes.json());
       setLoading(false);
     } catch (err) {
@@ -48,24 +45,22 @@ export default function Admin() {
     }
   };
 
-  const saveSettings = async () => {
-    const res = await fetch('/api/admin/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings)
-    });
-    if (res.ok) alert('Settings saved!');
-  };
-
   const startNewPost = () => {
-    setCurrentPost({ id: '', title: '', date: new Date().toISOString().split('T')[0], content: '' });
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    const createdAtStr = now.toISOString().slice(0, 16);
+    setCurrentPost({ id: '', title: '', date: new Date().toISOString().split('T')[0], createdAtStr, content: '' });
     setIsEditing(true);
   };
 
   const editPost = async (id) => {
     const res = await fetch(`/api/admin/blogs/${id}`);
     if (res.ok) {
-      setCurrentPost(await res.json());
+      const post = await res.json();
+      const createTime = post.createdAt ? new Date(post.createdAt) : new Date(post.date);
+      createTime.setMinutes(createTime.getMinutes() - createTime.getTimezoneOffset());
+      post.createdAtStr = createTime.toISOString().slice(0, 16);
+      setCurrentPost(post);
       setIsEditing(true);
     }
   };
@@ -73,10 +68,15 @@ export default function Admin() {
   const savePost = async () => {
     if (!currentPost.id || !currentPost.title || !currentPost.content) return alert('Please fill all fields');
     
+    const payload = { ...currentPost };
+    if (payload.createdAtStr) {
+      payload.createdAt = new Date(payload.createdAtStr).getTime();
+    }
+
     const res = await fetch('/api/admin/blogs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(currentPost)
+      body: JSON.stringify(payload)
     });
 
     if (res.ok) {
@@ -235,6 +235,12 @@ export default function Admin() {
                     ? blog.views.map(id => users.find(u => u.id === id)?.username || 'Unknown User').join(', ') 
                     : 'No views yet'}
                 </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  <span className="font-semibold text-gray-300">Likes:</span>{' '}
+                  {blog.likes && blog.likes.length > 0 
+                    ? blog.likes.map(id => users.find(u => u.id === id)?.username || 'Unknown User').join(', ') 
+                    : 'No likes yet'}
+                </p>
               </div>
               <div className="space-x-4">
                 <button onClick={() => editPost(blog.id)} className="text-blue-400 hover:text-blue-300">Edit</button>
@@ -243,39 +249,6 @@ export default function Admin() {
             </div>
           ))}
           {blogs.length === 0 && <p className="text-gray-500">No posts yet.</p>}
-        </div>
-      </section>
-
-      <section className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-        <h2 className="text-xl font-semibold text-gray-100 mb-4">Site Settings</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="flex items-center space-x-3 text-gray-300">
-              <input 
-                type="checkbox" 
-                checked={settings.requireApproval}
-                onChange={e => setSettings({ ...settings, requireApproval: e.target.checked })}
-                className="form-checkbox h-5 w-5 text-blue-500 rounded bg-gray-900 border-gray-600 focus:ring-blue-500 focus:ring-offset-gray-800"
-              />
-              <span>Require Manual Approval for new users</span>
-            </label>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Allowed Discord Server (Guild ID) - Optional</label>
-            <input 
-              type="text" 
-              value={settings.allowedGuildId}
-              onChange={e => setSettings({ ...settings, allowedGuildId: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-200 focus:border-blue-500 focus:outline-none"
-              placeholder="e.g. 123456789012345678"
-            />
-          </div>
-          <button 
-            onClick={saveSettings}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
-          >
-            Save Settings
-          </button>
         </div>
       </section>
 
