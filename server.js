@@ -88,9 +88,7 @@ const requireAuth = (req, res, next) => {
 };
 
 const checkAccess = (req, res, next) => {
-  const user = req.user;
-  if (user.role === 'admin') return next();
-  if (user.status !== 'approved') return res.status(403).json({ error: 'Your account is pending approval or denied.' });
+  // Approval process removed; all authenticated users have access.
   next();
 };
 
@@ -150,49 +148,20 @@ app.get('/auth/discord/callback', async (req, res) => {
     });
     const userGuilds = await guildsRes.json();
 
-    const settings = loadJson(settingsFile, { requireApproval: true, allowedGuildId: '' });
     const users = loadJson(usersFile, {});
     
     const isFirstUser = Object.keys(users).length === 0;
-    const inAllowedGuild = settings.allowedGuildId ? userGuilds.some(g => g.id === settings.allowedGuildId) : false;
-    
-    let defaultStatus = settings.requireApproval ? 'pending' : 'approved';
-    
-    // If user is in the allowed guild, auto-approve them regardless of the general setting
-    if (settings.allowedGuildId && inAllowedGuild) {
-      defaultStatus = 'approved';
-    } else if (settings.allowedGuildId && !inAllowedGuild) {
-      // If not in the guild and a guild is required, we can either deny or keep pending.
-      // Keeping it 'pending' allows for the "and/or" manual approval the user requested.
-      defaultStatus = settings.requireApproval ? 'pending' : 'denied';
-    }
-
     const existingUser = users[identity.id];
     const role = existingUser ? existingUser.role : (isFirstUser ? 'admin' : 'user');
-    const status = existingUser ? existingUser.status : (isFirstUser ? 'approved' : defaultStatus);
 
     users[identity.id] = {
       id: identity.id,
       username: identity.username,
       avatar: identity.avatar,
       role,
-      status
+      lastSignIn: Date.now()
     };
     saveJson(usersFile, users);
-
-    // Notify Gork Bot if pending
-    if (status === 'pending') {
-      const gorkUrl = process.env.GORK_BOT_URL || 'https://gork.apatel.xyz';
-      fetch(`${gorkUrl}/api/internal/blog-request`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: identity.id,
-          username: identity.username,
-          secret: process.env.SHARED_INTERNAL_SECRET
-        })
-      }).catch(err => console.error('Failed to notify Gork:', err));
-    }
 
     const sessionToken = encodeSession({
       discordId: identity.id,
@@ -300,26 +269,16 @@ app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   fs.writeFileSync(path.join(dbDir, fileName), content);
 
   const existingIdx = data.findIndex(b => b.id === id);
-  const blogEntry = { id, title, date, file: fileName };
+  const existingBlog = existingIdx >= 0 ? data[existingIdx] : null;
+  const createdAt = existingBlog && existingBlog.createdAt ? existingBlog.createdAt : Date.now();
+  const views = existingBlog && existingBlog.views ? existingBlog.views : [];
+
+  const blogEntry = { id, title, date, createdAt, file: fileName, views };
 
   if (existingIdx >= 0) data[existingIdx] = blogEntry;
   else data.push(blogEntry);
 
   saveJson(indexFile, data);
-  res.json({ success: true });
-});
-
-// Internal API for Gork Bot interaction
-app.post('/api/internal/set-status', (req, res) => {
-  const { userId, status, secret } = req.body;
-  if (secret !== process.env.SHARED_INTERNAL_SECRET) return res.status(403).json({ error: 'Forbidden' });
-  if (!userId || !status) return res.status(400).json({ error: 'Missing fields' });
-
-  const users = loadJson(usersFile, {});
-  if (!users[userId]) return res.status(404).json({ error: 'User not found' });
-
-  users[userId].status = status;
-  saveJson(usersFile, users);
   res.json({ success: true });
 });
 

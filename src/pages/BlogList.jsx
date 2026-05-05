@@ -52,9 +52,13 @@ export default function BlogList() {
             <h2 className="text-2xl font-semibold text-gray-100 group-hover:text-blue-400 transition-colors mb-2">
               {blog.title}
             </h2>
-            <time className="text-sm text-gray-500" dateTime={blog.date}>
-              {format(parseISO(blog.date), 'MMMM d, yyyy')}
-            </time>
+            <div className="flex items-center space-x-4 text-sm text-gray-500">
+              <time dateTime={blog.date}>
+                {format(parseISO(blog.date), 'MMMM d, yyyy')}
+              </time>
+              <span>•</span>
+              <span>{blog.views ? blog.views.length : 0} views</span>
+            </div>
           </Link>
         </article>
       ))}

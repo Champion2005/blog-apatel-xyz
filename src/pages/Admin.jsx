@@ -179,6 +179,15 @@ export default function Admin() {
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Exact Post Time</label>
+            <input 
+              type="datetime-local" 
+              value={currentPost.createdAtStr || ''}
+              onChange={e => setCurrentPost({ ...currentPost, createdAtStr: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-200 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">Content (Markdown)</label>
             <div className="prose-invert">
               <SimpleMDE 
@@ -271,9 +280,8 @@ export default function Admin() {
             <thead className="bg-gray-800 text-gray-400 border-b border-gray-700">
               <tr>
                 <th className="px-4 py-3">Username</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Last Sign In</th>
                 <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
@@ -285,10 +293,8 @@ export default function Admin() {
                       <span>{u.username}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${u.status === 'approved' ? 'bg-green-900 text-green-300' : u.status === 'denied' ? 'bg-red-900 text-red-300' : 'bg-yellow-900 text-yellow-300'}`}>
-                      {u.status}
-                    </span>
+                  <td className="px-4 py-3 text-gray-400">
+                    {u.lastSignIn ? new Date(u.lastSignIn).toLocaleString() : 'Unknown'}
                   </td>
                   <td className="px-4 py-3 text-gray-400">
                     <select 
@@ -299,17 +305,6 @@ export default function Admin() {
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
                     </select>
-                  </td>
-                  <td className="px-4 py-3 space-x-2">
-                    {u.status !== 'approved' && (
-                      <button onClick={() => updateUser(u.id, { status: 'approved' })} className="text-green-400 hover:text-green-300">Approve</button>
-                    )}
-                    {u.status !== 'denied' && (
-                      <button onClick={() => updateUser(u.id, { status: 'denied' })} className="text-red-400 hover:text-red-300">Deny</button>
-                    )}
-                    {u.status !== 'pending' && (
-                      <button onClick={() => updateUser(u.id, { status: 'pending' })} className="text-yellow-400 hover:text-yellow-300">Pending</button>
-                    )}
                   </td>
                 </tr>
               ))}
