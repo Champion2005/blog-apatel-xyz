@@ -204,6 +204,14 @@ app.get('/api/blogs', maybeAuth, (req, res) => {
     if (!req.user) {
       data = data.filter(b => b.isPublic);
     }
+
+    // Sort by createdAt descending, fallback to date
+    data.sort((a, b) => {
+      const timeA = a.createdAt || new Date(a.date).getTime() || 0;
+      const timeB = b.createdAt || new Date(b.date).getTime() || 0;
+      return timeB - timeA;
+    });
+
     res.json(data);
   } else {
     res.json([]);
@@ -295,6 +303,14 @@ app.post('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
 app.get('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   const indexFile = path.join(dbDir, 'index.json');
   const data = loadJson(indexFile, []);
+  
+  // Sort by createdAt descending
+  data.sort((a, b) => {
+    const timeA = a.createdAt || new Date(a.date).getTime() || 0;
+    const timeB = b.createdAt || new Date(b.date).getTime() || 0;
+    return timeB - timeA;
+  });
+  
   res.json(data);
 });
 
