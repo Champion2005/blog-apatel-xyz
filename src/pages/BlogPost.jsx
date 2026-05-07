@@ -107,6 +107,7 @@ function CommentItem({ comment, currentUserId, isAdmin, onDelete, onUpdate }) {
 export default function BlogPost() {
   const { id } = useParams();
   const [post, setPost] = useState(null);
+  const [allPosts, setAllPosts] = useState([]);
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -130,6 +131,7 @@ export default function BlogPost() {
         return res.json();
       })
       .then(data => {
+        setAllPosts(data);
         const found = data.find(b => b.id === id);
         if (found) {
           setPost(found);
@@ -222,6 +224,10 @@ export default function BlogPost() {
   // Pre-render markdown content once
   const renderedContent = useMemo(() => marked(content), [content]);
 
+  const currentIndex = allPosts.findIndex(p => p.id === id);
+  const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
+  const prevPost = currentIndex !== -1 && currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null;
+
   if (loading) return <div className="text-center py-10 text-gray-400">Loading...</div>;
   if (error) return (
     <div className="text-center py-10">
@@ -240,10 +246,11 @@ export default function BlogPost() {
             {format(parseISO(post.date), 'MMMM d, yyyy')}
           </time>
           <span>•</span>
-          <span>{post.views ? post.views.length : 0} views</span>
+          <span title="Views">👁️ {post.views ? post.views.length : 0}</span>
           <span>•</span>
           <button 
             onClick={toggleLike} 
+            title="Likes"
             className={`flex items-center space-x-1 px-2 py-1 rounded transition-colors ${
               post.likes && post.likes.includes(userId) 
                 ? 'bg-blue-900/50 text-blue-400 hover:bg-blue-900/70' 
@@ -276,8 +283,33 @@ export default function BlogPost() {
         <div dangerouslySetInnerHTML={{ __html: renderedContent }}></div>
       </div>
 
+      <div className="mt-12 flex justify-between items-center border-t border-gray-700 pt-6">
+        <div>
+          {prevPost && (
+            <Link to={`/post/${prevPost.id}`} className="text-blue-400 hover:underline flex items-center">
+              <span className="mr-2">←</span>
+              <div>
+                <div className="text-xs text-gray-500 uppercase tracking-wider">Previous</div>
+                <div className="font-semibold">{prevPost.title}</div>
+              </div>
+            </Link>
+          )}
+        </div>
+        <div className="text-right">
+          {nextPost && (
+            <Link to={`/post/${nextPost.id}`} className="text-blue-400 hover:underline flex items-center justify-end">
+              <div className="text-right">
+                <div className="text-xs text-gray-500 uppercase tracking-wider">Next</div>
+                <div className="font-semibold">{nextPost.title}</div>
+              </div>
+              <span className="ml-2">→</span>
+            </Link>
+          )}
+        </div>
+      </div>
+
       <div className="mt-16 border-t border-gray-700 pt-8 pb-12">
-        <h2 className="text-2xl font-bold text-gray-100 mb-8">Comments ({post.comments ? post.comments.length : 0})</h2>
+        <h2 className="text-2xl font-bold text-gray-100 mb-8">💬 {post.comments ? post.comments.length : 0}</h2>
         
         <CommentInput 
           disabled={!userId} 

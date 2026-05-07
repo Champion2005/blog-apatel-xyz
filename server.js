@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import multer from 'multer';
 
 dotenv.config();
 
@@ -27,6 +28,22 @@ app.use(express.json());
 // Load or create databases
 const dbDir = path.join(__dirname, 'blogs');
 if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+
+const imagesDir = path.join(dbDir, 'images');
+if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, imagesDir)
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, uniqueSuffix + path.extname(file.originalname))
+  }
+});
+const upload = multer({ storage: storage });
+
+app.use('/images', express.static(imagesDir));
 
 const usersFile = path.join(dbDir, 'users.json');
 
@@ -398,6 +415,12 @@ app.get('/api/admin/blogs/:id', requireAuth, requireAdmin, (req, res) => {
   
   const content = fs.readFileSync(path.join(dbDir, blog.file), 'utf-8');
   res.json({ ...blog, content });
+});
+
+app.post('/api/admin/upload', requireAuth, requireAdmin, upload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const imageUrl = `/images/${req.file.filename}`;
+  res.json({ url: imageUrl });
 });
 
 app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {

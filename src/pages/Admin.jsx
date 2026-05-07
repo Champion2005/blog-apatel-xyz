@@ -206,16 +206,7 @@ export default function Admin() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Date</label>
-            <input 
-              type="date" 
-              value={currentPost.date}
-              onChange={e => setCurrentPost({ ...currentPost, date: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-200 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Exact Post Time</label>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Post Date & Time</label>
             <input 
               type="datetime-local" 
               value={currentPost.createdAtStr || ''}
@@ -235,7 +226,21 @@ export default function Admin() {
             </label>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Content (Markdown)</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-medium text-gray-400">Content (Markdown)</label>
+              <div className="relative">
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleImageUpload} 
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  title="Upload Image"
+                />
+                <button className="bg-gray-700 hover:bg-gray-600 text-xs text-gray-200 px-3 py-1 rounded transition-colors">
+                  📷 Insert Image
+                </button>
+              </div>
+            </div>
             <div className="prose-invert">
               <SimpleMDE 
                 value={currentPost.content} 
@@ -295,15 +300,17 @@ export default function Admin() {
                 <div className="flex space-x-4 mt-2">
                   <button 
                     onClick={() => openModal(`Viewers: ${blog.title}`, blog.views || [])}
-                    className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition"
+                    className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition flex items-center space-x-1"
+                    title="Viewers"
                   >
-                    Viewers: {blog.views ? blog.views.length : 0}
+                    <span>👁️</span> <span>{blog.views ? blog.views.length : 0}</span>
                   </button>
                   <button 
                     onClick={() => openModal(`Likes: ${blog.title}`, blog.likes || [])}
-                    className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition"
+                    className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition flex items-center space-x-1"
+                    title="Likes"
                   >
-                    Likes: {blog.likes ? blog.likes.length : 0}
+                    <span>👍</span> <span>{blog.likes ? blog.likes.length : 0}</span>
                   </button>
                 </div>
               </div>
@@ -418,6 +425,29 @@ export default function Admin() {
                 </tr>
               ))}
             </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+                    onChange={e => updateUser(u.id, { role: e.target.value })}
+                      className="bg-gray-900 border border-gray-700 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="user">User</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+         </tbody>
           </table>
         </div>
       </section>

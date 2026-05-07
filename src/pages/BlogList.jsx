@@ -48,19 +48,22 @@ export default function BlogList() {
       {blogs.map(blog => (
         <article key={blog.id} className="group">
           <Link to={`/post/${blog.id}`} className="block">
-            <h2 className="text-2xl font-semibold text-gray-100 group-hover:text-blue-400 transition-colors mb-2">
+            <h2 className="text-2xl font-semibold text-gray-100 group-hover:text-blue-400 transition-colors mb-1">
               {blog.title}
             </h2>
+            <div className="text-sm text-blue-400 mb-2 font-mono">
+              /{blog.id}
+            </div>
             <div className="flex items-center space-x-4 text-sm text-gray-500">
               <time dateTime={blog.date}>
                 {format(parseISO(blog.date), 'MMMM d, yyyy')}
               </time>
               <span>•</span>
-              <span>{blog.views ? blog.views.length : 0} views</span>
+              <span title="Views">👁️ {blog.views ? blog.views.length : 0}</span>
               <span>•</span>
-              <span>{blog.likes ? blog.likes.length : 0} likes</span>
+              <span title="Likes">👍 {blog.likes ? blog.likes.length : 0}</span>
               <span>•</span>
-              <span>{blog.comments ? blog.comments.length : 0} comments</span>
+              <span title="Comments">💬 {blog.comments ? blog.comments.length : 0}</span>
             </div>
           </Link>
         </article>
