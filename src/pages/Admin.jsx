@@ -128,6 +128,33 @@ export default function Admin() {
     if (res.ok) fetchAdminData();
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    try {
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const imgMarkdown = `\n![${file.name}](${data.url})\n`;
+        setCurrentPost(prev => ({ ...prev, content: prev.content + imgMarkdown }));
+      } else {
+        alert('Image upload failed');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Upload error');
+    }
+    // clear input
+    e.target.value = '';
+  };
+
   const mdeOptions = useMemo(() => ({
     spellChecker: false,
     maxHeight: "500px",
