@@ -528,8 +528,16 @@ app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   const comments = existingBlog && existingBlog.comments ? existingBlog.comments : [];
   const isPublic = !!req.body.isPublic;
   const status = req.body.status === 'published' ? 'published' : 'draft';
+  const isPinned = !!req.body.isPinned;
 
-  const blogEntry = { id, title, date, createdAt, file: fileName, views, likes, isPublic, status, comments };
+  if (isPinned) {
+    const pinnedCount = data.filter(b => b.isPinned && b.id !== id).length;
+    if (pinnedCount >= 3) {
+      return res.status(400).json({ error: 'Maximum of 3 pinned posts allowed' });
+    }
+  }
+
+  const blogEntry = { id, title, date, createdAt, file: fileName, views, likes, isPublic, status, comments, isPinned };
 
   if (existingIdx >= 0) data[existingIdx] = blogEntry;
   else data.push(blogEntry);
@@ -551,6 +559,7 @@ app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
       url: blogUrl,
       color: isPublic ? 5814783 : 16731136, // Purple for public, Orange for private
       fields: [
+        { name: 'Slug', value: id, inline: true },
         { name: 'Date', value: date, inline: true },
         { name: 'Visibility', value: isPublic ? '🌍 Public' : '🔒 Private (Login Required)', inline: true }
       ],
@@ -573,6 +582,30 @@ app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   }
 
   res.json({ success: true });
+});
+
+app.patch('/api/admin/blogs/:id', requireAuth, requireAdmin, (req, res) => {
+  const indexFile = path.join(dbDir, 'index.json');
+  const data = loadJson(indexFile, []);
+  const existingIdx = data.findIndex(b => b.id === req.params.id);
+  if (existingIdx === -1) return res.status(404).json({ error: 'Blog not found' });
+  
+  const blog = data[existingIdx];
+  if (req.body.isPinned !== undefined) {
+    const isPinned = !!req.body.isPinned;
+    if (isPinned) {
+      const pinnedCount = data.filter(b => b.isPinned && b.id !== blog.id).length;
+      if (pinnedCount >= 3) {
+        return res.status(400).json({ error: 'Maximum of 3 pinned posts allowed' });
+      }
+    }
+    blog.isPinned = isPinned;
+  }
+  if (req.body.isPublic !== undefined) blog.isPublic = !!req.body.isPublic;
+  if (req.body.status !== undefined) blog.status = req.body.status;
+  
+  saveJson(indexFile, data);
+  res.json(blog);
 });
 
 app.delete('/api/admin/blogs/:id', requireAuth, requireAdmin, (req, res) => {

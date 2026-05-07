@@ -9,6 +9,33 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [activeMenu, setActiveMenu] = useState(null);
+
+  useEffect(() => {
+    const handleClick = () => setActiveMenu(null);
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
+
+  const toggleMenu = (e, id) => {
+    e.stopPropagation();
+    setActiveMenu(activeMenu === id ? null : id);
+  };
+
+  const quickAction = async (id, updates) => {
+    const res = await fetch(`/api/admin/blogs/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    if (res.ok) {
+      fetchAdminData();
+    } else {
+      const err = await res.json();
+      alert(err.error || 'Failed to update');
+    }
+  };
+
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
@@ -388,9 +415,48 @@ export default function Admin() {
                   </button>
                 </div>
               </div>
-              <div className="space-x-4">
-                <button onClick={() => editPost(blog.id)} className="text-blue-400 hover:text-blue-300">Edit</button>
-                <button onClick={() => deletePost(blog.id)} className="text-red-400 hover:text-red-300">Delete</button>
+              <div className="relative">
+                <button 
+                  onClick={(e) => toggleMenu(e, blog.id)} 
+                  className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 focus:outline-none"
+                >
+                  ⋮
+                </button>
+                {activeMenu === blog.id && (
+                  <div className="absolute right-0 mt-2 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-10 py-1">
+                    <button 
+                      onClick={() => quickAction(blog.id, { isPinned: !blog.isPinned })}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
+                    >
+                      {blog.isPinned ? 'Unpin Post' : 'Pin Post'}
+                    </button>
+                    <button 
+                      onClick={() => quickAction(blog.id, { isPublic: !blog.isPublic })}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
+                    >
+                      Make {blog.isPublic ? 'Private' : 'Public'}
+                    </button>
+                    <button 
+                      onClick={() => quickAction(blog.id, { status: blog.status === 'published' ? 'draft' : 'published' })}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
+                    >
+                      Set as {blog.status === 'published' ? 'Draft' : 'Published'}
+                    </button>
+                    <div className="border-t border-gray-700 my-1"></div>
+                    <button 
+                      onClick={() => { setActiveMenu(null); editPost(blog.id); }}
+                      className="w-full text-left px-4 py-2 text-sm text-blue-400 hover:bg-gray-800"
+                    >
+                      Edit Content
+                    </button>
+                    <button 
+                      onClick={() => { setActiveMenu(null); deletePost(blog.id); }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800"
+                    >
+                      Delete Post
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
