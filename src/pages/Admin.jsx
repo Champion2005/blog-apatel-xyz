@@ -5,6 +5,7 @@ import "easymde/dist/easymde.min.css";
 export default function Admin() {
   const [users, setUsers] = useState([]);
   const [blogs, setBlogs] = useState([]);
+  const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -39,11 +40,12 @@ export default function Admin() {
 
   const fetchAdminData = async () => {
     try {
-      const [uRes, bRes] = await Promise.all([
+      const [uRes, bRes, iRes] = await Promise.all([
         fetch('/api/admin/users'),
-        fetch('/api/admin/blogs')
+        fetch('/api/admin/blogs'),
+        fetch('/api/admin/images')
       ]);
-      if (!uRes.ok || !bRes.ok) throw new Error('Failed to load admin data.');
+      if (!uRes.ok || !bRes.ok || !iRes.ok) throw new Error('Failed to load admin data.');
       setUsers(await uRes.json());
       const blogsData = await bRes.json();
       const sortedBlogs = blogsData.sort((a, b) => {
@@ -52,6 +54,7 @@ export default function Admin() {
         return timeB - timeA;
       });
       setBlogs(sortedBlogs);
+      setImages(await iRes.json());
       setLoading(false);
     } catch (err) {
       setError(err.message);
@@ -63,6 +66,33 @@ export default function Admin() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAdminData();
   }, []);
+
+  const deleteImage = async (filename) => {
+    if (!confirm('Are you sure you want to delete this image? This might break links in your posts.')) return;
+    const res = await fetch(`/api/admin/images/${filename}`, { method: 'DELETE' });
+    if (res.ok) {
+      setImages(images.filter(img => img.filename !== filename));
+    } else {
+      alert('Failed to delete image');
+    }
+  };
+
+  const cleanupImages = async () => {
+    if (!confirm('This will permanently delete any image that is NOT linked in a blog post. Continue?')) return;
+    try {
+      const res = await fetch('/api/admin/images/cleanup', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Cleanup complete! Deleted ${data.deletedCount} orphaned images, freeing ${(data.bytesFreed / 1024 / 1024).toFixed(2)} MB of space.`);
+        fetchAdminData();
+      } else {
+        alert('Cleanup failed');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Cleanup error');
+    }
+  };
 
   const updateUser = async (id, updates) => {
     const res = await fetch(`/api/admin/users/${id}`, {
@@ -453,6 +483,62 @@ export default function Admin() {
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      {/* Media Manager Section */}
+      <section>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-100">Media Manager</h2>
+          <button 
+            onClick={cleanupImages}
+            className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition flex items-center space-x-2"
+          >
+            <span>🧹</span>
+            <span>Clean Up Unused Images</span>
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {images.map(img => (
+            <div key={img.filename} className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 flex flex-col">
+              <div className="h-32 bg-gray-900 flex items-center justify-center p-2 relative group">
+                <img src={img.url} alt={img.filename} className="max-h-full max-w-full object-contain" />
+              </div>
+              <div className="p-3 flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="text-xs text-gray-200 font-mono truncate" title={img.filename}>
+                    {img.filename}
+                  </div>
+                  <div className="text-[10px] text-gray-500 mt-1">
+                    {(img.size / 1024).toFixed(1)} KB • {new Date(img.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <div className="flex justify-between mt-3">
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(`![${img.filename}](${img.url})`);
+                      alert('Markdown link copied to clipboard!');
+                    }}
+                    className="text-xs text-blue-400 hover:text-blue-300 bg-blue-900/30 px-2 py-1 rounded"
+                  >
+                    Copy MD
+                  </button>
+                  <button 
+                    onClick={() => deleteImage(img.filename)}
+                    className="text-xs text-red-400 hover:text-red-300 bg-red-900/30 px-2 py-1 rounded"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+          {images.length === 0 && (
+            <div className="col-span-full text-gray-500 py-8 text-center bg-gray-800/50 rounded-lg border border-gray-700/50">
+              No images uploaded yet.
+            </div>
+          )}
         </div>
       </section>
     </div>

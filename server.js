@@ -41,7 +41,16 @@ const storage = multer.diskStorage({
     cb(null, uniqueSuffix + path.extname(file.originalname))
   }
 });
-const upload = multer({ storage: storage });
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed!'), false);
+  }
+};
+
+const upload = multer({ storage: storage, fileFilter: fileFilter });
 
 app.use('/images', express.static(imagesDir));
 
@@ -421,6 +430,68 @@ app.post('/api/admin/upload', requireAuth, requireAdmin, upload.single('image'),
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const imageUrl = `/images/${req.file.filename}`;
   res.json({ url: imageUrl });
+});
+
+app.get('/api/admin/images', requireAuth, requireAdmin, (req, res) => {
+  if (!fs.existsSync(imagesDir)) return res.json([]);
+  const files = fs.readdirSync(imagesDir);
+  const images = files.map(file => {
+    const stats = fs.statSync(path.join(imagesDir, file));
+    return {
+      filename: file,
+      url: `/images/${file}`,
+      size: stats.size,
+      createdAt: stats.birthtimeMs
+    };
+  }).sort((a, b) => b.createdAt - a.createdAt);
+  res.json(images);
+});
+
+app.delete('/api/admin/images/:filename', requireAuth, requireAdmin, (req, res) => {
+  const filePath = path.join(imagesDir, req.params.filename);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'Image not found' });
+  }
+});
+
+app.post('/api/admin/images/cleanup', requireAuth, requireAdmin, (req, res) => {
+  if (!fs.existsSync(imagesDir)) return res.json({ deletedCount: 0, bytesFreed: 0 });
+  
+  // 1. Find all images used in markdown files
+  const usedImages = new Set();
+  const mdFiles = fs.readdirSync(dbDir).filter(f => f.endsWith('.md'));
+  
+  mdFiles.forEach(file => {
+    const content = fs.readFileSync(path.join(dbDir, file), 'utf-8');
+    // Match anything that looks like /images/filename.ext
+    const matches = content.match(/\/images\/([^\s)"']+)/g);
+    if (matches) {
+      matches.forEach(match => {
+        const filename = match.replace('/images/', '');
+        usedImages.add(filename);
+      });
+    }
+  });
+
+  // 2. Iterate over all images in imagesDir and delete if not used
+  const allImages = fs.readdirSync(imagesDir);
+  let deletedCount = 0;
+  let bytesFreed = 0;
+
+  allImages.forEach(file => {
+    if (!usedImages.has(file)) {
+      const filePath = path.join(imagesDir, file);
+      const stats = fs.statSync(filePath);
+      bytesFreed += stats.size;
+      fs.unlinkSync(filePath);
+      deletedCount++;
+    }
+  });
+
+  res.json({ deletedCount, bytesFreed });
 });
 
 app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
