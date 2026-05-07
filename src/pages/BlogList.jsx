@@ -46,10 +46,11 @@ export default function BlogList() {
   return (
     <div className="space-y-8">
       {blogs.map(blog => (
-        <article key={blog.id} className="group">
+        <article key={blog.id} className={`group ${blog.isPinned ? 'p-6 rounded-xl border-2 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.15)] bg-gray-900/50 mb-8' : ''}`}>
           <Link to={`/post/${blog.id}`} className="block">
-            <h2 className="text-2xl font-semibold text-gray-100 group-hover:text-blue-400 transition-colors mb-1">
-              {blog.title}
+            <h2 className="text-2xl font-semibold text-gray-100 group-hover:text-blue-400 transition-colors mb-1 flex items-center">
+              {blog.isPinned && <span className="mr-3 text-xl" title="Pinned Post">📌</span>}
+              <span>{blog.title}</span>
             </h2>
             <div className="text-sm text-blue-400 mb-2 font-mono">
               /{blog.id}

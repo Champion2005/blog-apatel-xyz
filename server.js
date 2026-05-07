@@ -408,6 +408,8 @@ app.get('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   
   // Sort by createdAt descending
   data.sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
     const timeA = a.createdAt || new Date(a.date).getTime() || 0;
     const timeB = b.createdAt || new Date(b.date).getTime() || 0;
     return timeB - timeA;
@@ -608,6 +610,13 @@ app.use((req, res) => {
   // Send index.html for SPA routes, disabling cache so browser always gets the latest asset hashes
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Blog backend running on port ${port}`);
+});
+e(path.join(__dirname, 'dist', 'index.html'));
 });
 
 const port = process.env.PORT || 3000;

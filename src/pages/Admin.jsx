@@ -149,6 +149,9 @@ export default function Admin() {
       alert(`Post ${payload.status === 'published' ? 'published' : 'saved as draft'}!`);
       setIsEditing(false);
       fetchAdminData(); // Refresh list
+    } else {
+      const errData = await res.json();
+      alert(errData.error || 'Failed to save post');
     }
   };
 
@@ -283,6 +286,17 @@ export default function Admin() {
             </label>
           </div>
           <div>
+            <label className="flex items-center space-x-3 text-gray-300">
+              <input 
+                type="checkbox" 
+                checked={currentPost.isPinned}
+                onChange={e => setCurrentPost({ ...currentPost, isPinned: e.target.checked })}
+                className="form-checkbox h-5 w-5 text-yellow-500 rounded bg-gray-900 border-gray-600 focus:ring-yellow-500 focus:ring-offset-gray-800"
+              />
+              <span>📌 Pinned Post (Max 3)</span>
+            </label>
+          </div>
+          <div>
             <div className="flex justify-between items-center mb-1">
               <label className="block text-sm font-medium text-gray-400">Content (Markdown)</label>
               <div className="relative">
@@ -342,9 +356,12 @@ export default function Admin() {
         <h2 className="text-xl font-semibold text-gray-100 mb-4">Blog Posts</h2>
         <div className="grid gap-4">
           {blogs.map(blog => (
-            <div key={blog.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 flex justify-between items-center">
+            <div key={blog.id} className={`bg-gray-800 p-4 rounded-lg flex justify-between items-center ${blog.isPinned ? 'border-2 border-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.2)]' : 'border border-gray-700'}`}>
               <div>
-                <h3 className="font-bold text-gray-100">{blog.title}</h3>
+                <h3 className="font-bold text-gray-100">
+                  {blog.isPinned && <span className="mr-2" title="Pinned Post">📌</span>}
+                  {blog.title}
+                </h3>
                 <p className="text-xs text-gray-500">
                   {blog.date} • /{blog.id} 
                   <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${blog.status === 'draft' ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-700/50' : 'bg-green-900/50 text-green-400 border border-green-700/50'}`}>
