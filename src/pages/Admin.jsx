@@ -431,26 +431,3 @@ export default function Admin() {
     </div>
   );
 }
-                    onChange={e => updateUser(u.id, { role: e.target.value })}
-                      className="bg-gray-900 border border-gray-700 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
-  );
-}
-         </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
-  );
-}
