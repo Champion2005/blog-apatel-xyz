@@ -222,11 +222,9 @@ app.get('/api/blogs', maybeAuth, (req, res) => {
   const indexFile = path.join(__dirname, 'blogs', 'index.json');
   if (fs.existsSync(indexFile)) {
     let data = JSON.parse(fs.readFileSync(indexFile, 'utf-8'));
-    // Filter out drafts for non-admins
-    if (req.user?.role !== 'admin') {
-      // Treat any post without a status as 'published' (migration fallback)
-      data = data.filter(b => !b.status || b.status === 'published');
-    }
+    // Filter out drafts for everyone on the public feed
+    // Treat any post without a status as 'published' (migration fallback)
+    data = data.filter(b => !b.status || b.status === 'published');
     // If not logged in, only show public published blogs
     if (!req.user) {
       data = data.filter(b => b.isPublic);
