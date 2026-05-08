@@ -234,6 +234,8 @@ app.get('/api/blogs', maybeAuth, (req, res) => {
 
     // Sort by createdAt descending, fallback to date
     data.sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
       const timeA = a.createdAt || new Date(a.date).getTime() || 0;
       const timeB = b.createdAt || new Date(b.date).getTime() || 0;
       return timeB - timeA;
