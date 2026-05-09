@@ -406,16 +406,19 @@ app.get('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   const indexFile = path.join(dbDir, 'index.json');
   const data = loadJson(indexFile, []);
   
-  // Sort by createdAt descending
-  data.sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
+  const pinnedPosts = data.filter(b => b.isPinned);
+  const regularPosts = data.filter(b => !b.isPinned);
+
+  const sortFn = (a, b) => {
     const timeA = a.createdAt || new Date(a.date).getTime() || 0;
     const timeB = b.createdAt || new Date(b.date).getTime() || 0;
     return timeB - timeA;
-  });
+  };
+
+  pinnedPosts.sort(sortFn);
+  regularPosts.sort(sortFn);
   
-  res.json(data);
+  res.json([...pinnedPosts, ...regularPosts]);
 });
 
 app.get('/api/admin/blogs/:id', requireAuth, requireAdmin, (req, res) => {
