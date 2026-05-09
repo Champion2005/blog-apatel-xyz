@@ -230,16 +230,25 @@ app.get('/api/blogs', maybeAuth, (req, res) => {
       data = data.filter(b => b.isPublic);
     }
 
-    // Sort by createdAt descending, fallback to date
-    data.sort((a, b) => {
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
+    const pinnedPosts = data.filter(b => b.isPinned);
+    const regularPosts = data.filter(b => !b.isPinned);
+
+    const sortPinnedFn = (a, b) => {
+      const timeA = a.pinnedAt || a.createdAt || new Date(a.date).getTime() || 0;
+      const timeB = b.pinnedAt || b.createdAt || new Date(b.date).getTime() || 0;
+      return timeB - timeA;
+    };
+
+    const sortRegularFn = (a, b) => {
       const timeA = a.createdAt || new Date(a.date).getTime() || 0;
       const timeB = b.createdAt || new Date(b.date).getTime() || 0;
       return timeB - timeA;
-    });
+    };
 
-    res.json(data);
+    pinnedPosts.sort(sortPinnedFn);
+    regularPosts.sort(sortRegularFn);
+
+    res.json([...pinnedPosts, ...regularPosts]);
   } else {
     res.json([]);
   }
@@ -409,14 +418,20 @@ app.get('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   const pinnedPosts = data.filter(b => b.isPinned);
   const regularPosts = data.filter(b => !b.isPinned);
 
-  const sortFn = (a, b) => {
+  const sortPinnedFn = (a, b) => {
+    const timeA = a.pinnedAt || a.createdAt || new Date(a.date).getTime() || 0;
+    const timeB = b.pinnedAt || b.createdAt || new Date(b.date).getTime() || 0;
+    return timeB - timeA;
+  };
+
+  const sortRegularFn = (a, b) => {
     const timeA = a.createdAt || new Date(a.date).getTime() || 0;
     const timeB = b.createdAt || new Date(b.date).getTime() || 0;
     return timeB - timeA;
   };
 
-  pinnedPosts.sort(sortFn);
-  regularPosts.sort(sortFn);
+  pinnedPosts.sort(sortPinnedFn);
+  regularPosts.sort(sortRegularFn);
   
   res.json([...pinnedPosts, ...regularPosts]);
 });
@@ -541,6 +556,7 @@ app.post('/api/admin/blogs', requireAuth, requireAdmin, (req, res) => {
   }
 
   const blogEntry = { id, title, date, createdAt, file: fileName, views, likes, isPublic, status, comments, isPinned };
+  if (isPinned) blogEntry.pinnedAt = Date.now();
 
   if (existingIdx >= 0) data[existingIdx] = blogEntry;
   else data.push(blogEntry);
@@ -651,4 +667,6 @@ app.use((req, res) => {
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Blog backend running on port ${port}`);
+});
+ng on port ${port}`);
 });
