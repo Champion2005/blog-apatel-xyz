@@ -668,5 +668,3 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Blog backend running on port ${port}`);
 });
-ng on port ${port}`);
-});
